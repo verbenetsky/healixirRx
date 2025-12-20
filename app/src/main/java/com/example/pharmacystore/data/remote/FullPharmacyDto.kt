@@ -1,0 +1,66 @@
+package com.example.pharmacystore.data.remote
+
+
+data class FullPharmacyDto(
+    val identyfikator_apteki: Int,
+    val nazwa_apteki: String?,
+    val stan_apteki: String,
+    val rodzaj_apteki: String,
+    val data_uruchomienia_apteki: String?,
+    val wojewodztwo: String,
+    val powiat: String,
+    val gmina: String?,
+    val typ_ulicy: String?,
+    val nazwa_ulicy: String?,
+    val numer_budynku: String?,
+    val numer_lokalu: String?,
+    val ulica_znormalizowana: String?,
+    val miejscowosc: String?,
+    val kod_pocztowy: String?,
+    val poczta: String?,
+    val telefon: String?,
+    val email: String?,
+    val wlasciciel_nazwa: String?,
+
+    val lat: Double?,
+    val lon: Double?,
+
+    val godziny_otwarcia_poniedzialek: String?,
+    val godziny_otwarcia_wtorek: String?,
+    val godziny_otwarcia_sroda: String?,
+    val godziny_otwarcia_czwartek: String?,
+    val godziny_otwarcia_piatek: String?,
+    val godziny_otwarcia_sobota: String?,
+) {
+    companion object {
+        val EMPTY = FullPharmacyDto(
+            identyfikator_apteki = 0,
+            nazwa_apteki = null,
+            stan_apteki = "",
+            rodzaj_apteki = "",
+            data_uruchomienia_apteki = null,
+            wojewodztwo = "",
+            powiat = "",
+            gmina = null,
+            typ_ulicy = null,
+            nazwa_ulicy = null,
+            numer_budynku = null,
+            numer_lokalu = null,
+            ulica_znormalizowana = null,
+            miejscowosc = null,
+            kod_pocztowy = null,
+            poczta = null,
+            telefon = null,
+            email = null,
+            wlasciciel_nazwa = null,
+            lat = null,
+            lon = null,
+            godziny_otwarcia_poniedzialek = null,
+            godziny_otwarcia_wtorek = null,
+            godziny_otwarcia_sroda = null,
+            godziny_otwarcia_czwartek = null,
+            godziny_otwarcia_piatek = null,
+            godziny_otwarcia_sobota = null,
+        )
+    }
+}
