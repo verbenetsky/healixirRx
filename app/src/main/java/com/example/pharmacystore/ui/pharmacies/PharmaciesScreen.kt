@@ -90,10 +90,8 @@ fun PharmaciesScreen(
         }
     }
 
+    // scroll listy
     LaunchedEffect(Unit) {
-        println("nastepuje scroll")
-        println("${viewModel.savedIndex}")
-        println("${viewModel.savedOffset}")
         listState.scrollToItem(
             index = viewModel.savedIndex,
             scrollOffset = viewModel.savedOffset
@@ -126,11 +124,9 @@ fun PharmaciesScreen(
 
         pharmacies = items,
         onSearchClick = {
-
             // najpierw
-
             viewModel.applyFilters()
-            items.refresh() // jeśli chcesz przeładować dane przy kliknięciu
+            items.refresh()
         },
         scrollBehavior = scrollBehavior,
         listState = listState,

@@ -2,6 +2,7 @@ package com.example.pharmacystore.repo
 
 import com.example.pharmacystore.domain.model.CartItem
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 interface ShoppingCartRepository {
 
@@ -17,10 +18,15 @@ interface ShoppingCartRepository {
 
     suspend fun removeItem(ndc: String, pharmacyId: Int)
 
+    // suspend fun getTotalPrice(): Result<Double>
+
     suspend fun clear()
+
+    val totalCartPrice: StateFlow<Double>
 
     fun observeCart(): Flow<List<CartItem>>
 
     fun observeCartSize(): Flow<Int>
+    fun observeTotalCartPrice(): Flow<Double>
 
 }

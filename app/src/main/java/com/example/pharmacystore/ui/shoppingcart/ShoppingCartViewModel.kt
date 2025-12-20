@@ -61,6 +61,13 @@ class ShoppingCartViewModel @Inject constructor(private val repo: ShoppingCartRe
         }
     }
 
+    val totalCartPrice: StateFlow<Double> =
+        repo.observeTotalCartPrice()
+            .stateIn(
+                scope = viewModelScope,
+                initialValue = 0.0,
+                started = SharingStarted.WhileSubscribed(5_000)
+            )
     fun increaseQt(item: CartItem) {
         viewModelScope.launch {
             println("zwieksza sie ilosc")

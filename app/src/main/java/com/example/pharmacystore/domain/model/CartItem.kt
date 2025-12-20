@@ -10,6 +10,7 @@ data class CartItem(
     val labelerName: String,
     val brandName: String?,
     val quantity: Int = 1,
+    val price: Double,
     val drugPackageDesc: String,
 
     val pharmacyId: Int,
@@ -34,7 +35,8 @@ fun CartItem.toEntity(userUID: String): ShoppingCartEntity {
         address = address,
         city = city,
         distanceKms = distanceKms,
-        userUID = userUID
+        userUID = userUID,
+        price = price
     )
 }
 
@@ -50,6 +52,7 @@ fun ShoppingCartEntity.toDomain() = CartItem(
     pharmacyName = pharmacyName,
     address = address,
     city = city,
-    distanceKms = distanceKms
+    distanceKms = distanceKms,
+    price = price
 )
 

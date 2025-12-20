@@ -18,6 +18,7 @@ data class ShoppingCartEntity(
     val brandName: String?,
     val drugNDC: String,
     val quantity: Int,
+    val price: Double,
     val drugPackageDesc: String,
 
     val pharmacyId: Int,

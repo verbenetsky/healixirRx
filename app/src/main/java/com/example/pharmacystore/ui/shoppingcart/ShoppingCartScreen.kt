@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -41,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +55,7 @@ fun ShoppingCartScreen(
     modifier: Modifier = Modifier,
     event: SharedFlow<ShoppingCartViewModel.ShoppingCartEvent>,
     items: List<CartItem>,
+    totalCartPrice: Double,
     onCheckoutClick: () -> Unit = {},
     onIncrease: (CartItem) -> Unit,
     onDecrease: (CartItem) -> Unit,
@@ -155,25 +159,65 @@ fun ShoppingCartScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            text = "Items in cart: ${items.sumOf { it.quantity }}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "Unique products: ${items.size}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Items",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f)
+                                )
+                                Text(
+                                    text = "${items.sumOf { it.quantity }}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    text = "Unique",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f)
+                                )
+                                Text(
+                                    text = "${items.size}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    text = "Total",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f)
+                                )
+                                Text(
+                                    text = "${String.format("%.2f", totalCartPrice)} zł",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
                     }
 
-                    Button(onClick = onCheckoutClick) {
+                    Spacer(Modifier.width(12.dp))
+
+                    Button(
+                        onClick = onCheckoutClick,
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+                    ) {
                         Text("Checkout")
                     }
                 }
@@ -370,6 +414,10 @@ fun CartItemRow(
                         }
                     }
 
+                    val str = String.format("%.2f",(item.price * item.quantity))
+
+                    Text("$str zł", modifier = Modifier.padding(2.dp))
+
                     IconButton(onClick = onRemove) {
                         Icon(
                             imageVector = Icons.Default.Delete,
@@ -433,23 +481,5 @@ fun RemoveFromCartDialog(
     }
 }
 
-private fun pharmacyGroupSizes(items: List<CartItem>): List<Int> {
-    if (items.isEmpty()) return emptyList()
-
-    val result = mutableListOf<Int>()
-    var count = 1
-
-    for (i in 1..items.lastIndex) {
-        if (items[i].pharmacyId == items[i - 1].pharmacyId) {
-            count++
-        } else {
-            result.add(count)
-            count = 1
-        }
-    }
-
-    result.add(count) // ostatnia grupa
-    return result
-}
 
 

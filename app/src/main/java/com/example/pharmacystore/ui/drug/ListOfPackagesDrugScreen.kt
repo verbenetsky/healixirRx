@@ -264,6 +264,7 @@ fun PickPackageDrugScreen(
                                 address = item.pharmacy.address,
                                 city = item.pharmacy.city,
                                 distanceKms = item.pharmacy.distanceKms,
+                                price = item.drugPrice
                             ),
                             item.quantity // item.qt - ilosc dostepnego towaru w jednej aptece
                         )

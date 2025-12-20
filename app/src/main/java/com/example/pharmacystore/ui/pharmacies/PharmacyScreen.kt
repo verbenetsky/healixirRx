@@ -45,6 +45,7 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.revenuecat.placeholder.placeholder
 import androidx.core.net.toUri
+import com.example.pharmacystore.common.calculateDistance
 import com.example.pharmacystore.data.remote.PharmacyShort
 import com.example.pharmacystore.ui.drug.DrugViewModel
 import com.revenuecat.placeholder.PlaceholderDefaults
@@ -52,6 +53,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun PharmacyScreen(
+    latLong: LatLng?,
     pharmacyViewModel: PharmacyViewModel,
     drugViewModel: DrugViewModel,
     onBack: () -> Unit = {},
@@ -96,9 +98,16 @@ fun PharmacyScreen(
                                     name = s.pharmacy.nazwa_apteki ?: "Apteka",
                                     address = s.pharmacy.ulica_znormalizowana,
                                     city = s.pharmacy.miejscowosc ?: "",
-                                    distanceKms = 100.2
+                                    distanceKms = calculateDistance(
+                                        lat1 = s.pharmacy.lat,
+                                        lon1 = s.pharmacy.lon,
+                                        lat2 =  if (latLong?.latitude != null) latLong.latitude else 0.0,
+                                        lon2 = if (latLong?.longitude != null) latLong.longitude else 0.0
+                                    )
                                 )
                             )
+                            println("lon is: ${s.pharmacy.lon}")
+                            println("lat is: ${s.pharmacy.lat}")
                         }
                     )
                 }

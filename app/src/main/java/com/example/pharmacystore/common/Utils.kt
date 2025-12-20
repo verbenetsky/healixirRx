@@ -51,7 +51,9 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.regex.Pattern
+import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.sqrt
 
 
 fun convertWojNumberToWojString(wojNumber: String): String {
@@ -261,6 +263,7 @@ fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
+// cale logowanie, uzupelnienie profila i rejestracja znajduje sie w dark theme i zeby to wymusic stosuje sie tego:
 @Composable
 fun ForcedDarkTheme(content: @Composable () -> Unit) {
     MaterialTheme(
@@ -269,6 +272,19 @@ fun ForcedDarkTheme(content: @Composable () -> Unit) {
         shapes = MaterialTheme.shapes,
         content = content
     )
+}
+
+// podlicza dystanc pomiedzy userem a apteką
+fun calculateDistance(lat1: Double , lon1:Double , lat2:Double , lon2: Double ): Double {
+    val lat1Rad:Double = Math.toRadians(lat1)
+    val  lat2Rad: Double = Math.toRadians(lat2)
+    val lon1Rad:Double = Math.toRadians(lon1)
+    val  lon2Rad: Double = Math.toRadians(lon2)
+
+    val x = (lon2Rad - lon1Rad) * cos((lat1Rad + lat2Rad) / 2)
+    val y = (lat2Rad - lat1Rad)
+    val distance = sqrt(x * x + y * y) * 6371
+    return distance
 }
 
 

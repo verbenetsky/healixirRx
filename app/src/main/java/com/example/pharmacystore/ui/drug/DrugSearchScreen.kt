@@ -191,6 +191,7 @@ fun DrugSearchScreen(
         }
     }
 
+    var textFieldText by remember { mutableStateOf("") }
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -202,20 +203,22 @@ fun DrugSearchScreen(
 
             OutlinedTextField(
                 modifier = Modifier.fillMaxWidth(),
-                value = searchBarState,
-                onValueChange = { drugViewModel.changeSearchBarState(it) },
+                value = textFieldText,
+                onValueChange = {
+                    textFieldText = it
+                    //drugViewModel.changeSearchBarState(it)
+                },
                 label = { Text("Enter UPC (barcode), NDC or name of drug to search") },
                 singleLine = true,
                 trailingIcon = {
-
                     // search
                     Row() {
                         IconButton(
                             onClick = {
                                 keyboardController?.hide()
                                 // aktualizujemy state w VM → odpali się nowy Pager
-                                drugViewModel.changeSearchBarState(searchBarState)
-                            }, enabled = searchBarState.isNotEmpty()
+                                drugViewModel.changeSearchBarState(textFieldText)
+                            }, enabled = textFieldText.isNotEmpty()
                         ) { Icon(Icons.Default.Search, contentDescription = "search") }
 
                         // open camera
@@ -274,7 +277,7 @@ fun DrugSearchScreen(
                 }
 
                 is LoadState.NotLoading -> {
-                    if (items.itemCount == 0 && searchBarState.isNotEmpty()) {
+                    if (items.itemCount == 0 && searchBarState.isNotEmpty() && textFieldText.isNotEmpty()) {
                         // nic nie znaleziono
                         Column(
                             Modifier.fillMaxSize(),
@@ -723,7 +726,7 @@ fun RejectCameraPermissionDialog(onDismiss: () -> Unit, onOpenSettingsClick: () 
                     Modifier.fillMaxWidth()
                 ) {
                     Spacer(Modifier.weight(1f))
-                    Button(onClick = {onOpenSettingsClick()}) {
+                    Button(onClick = { onOpenSettingsClick() }) {
                         Text("Open Settings")
                     }
                 }
@@ -732,7 +735,6 @@ fun RejectCameraPermissionDialog(onDismiss: () -> Unit, onOpenSettingsClick: () 
         }
     }
 }
-
 
 
 private fun openAppSettings(context: Context) {

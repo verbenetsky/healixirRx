@@ -1,7 +1,5 @@
 package com.example.pharmacystore.data.repository
 
-import androidx.compose.foundation.text.input.rememberTextFieldState
-import com.example.pharmacystore.data.local.db.PharmacyDatabase
 import com.example.pharmacystore.data.local.db.ShoppingCartDatabase
 import com.example.pharmacystore.domain.model.CartItem
 import com.example.pharmacystore.domain.model.toDomain
@@ -10,6 +8,8 @@ import com.example.pharmacystore.remoteApi.PharmacyApi
 import com.example.pharmacystore.repo.ShoppingCartRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -22,6 +22,12 @@ class ShoppingCartRepositoryImpl @Inject constructor(
     private val pharmacyApi: PharmacyApi,
     private val auth: FirebaseAuth
 ) : ShoppingCartRepository {
+
+    private val _totalCartPrice = MutableStateFlow(0.0)
+    override val totalCartPrice = _totalCartPrice.asStateFlow()
+
+    private val uid: String
+        get() = auth.currentUser?.uid ?: throw IllegalStateException("Not logged In")
 
     override suspend fun howManyParticularItemsInCart(packageNdc: String, pharmacyId: Int): Int {
         val qt = db.shoppingCartDao.checkIfCanIncreaseQt(packageNdc, pharmacyId)
@@ -64,6 +70,14 @@ class ShoppingCartRepositoryImpl @Inject constructor(
         db.shoppingCartDao.deleteItemFromCart(ndc, pharmacyId)
     }
 
+    override fun observeTotalCartPrice(): Flow<Double> {
+        return if (auth.currentUser?.uid == null) {
+            flowOf()
+        } else {
+            db.shoppingCartDao.observeTotalCartPrice(auth.currentUser!!.uid)
+        }
+    }
+
     override suspend fun clear() {
         db.shoppingCartDao.deleteAll()
     }
@@ -84,4 +98,6 @@ class ShoppingCartRepositoryImpl @Inject constructor(
         }
 
     }
+
+
 }

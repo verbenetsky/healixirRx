@@ -55,7 +55,9 @@ class DrugViewModel @Inject constructor(
         initialValue = ""
     )
 
-    fun changeSearchBarState(value: String) = repo.updateSearchBarState(value)
+    fun changeSearchBarState(value: String) {
+        repo.updateSearchBarState(value)
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val drugsPagingFlow: Flow<PagingData<Drug>> =

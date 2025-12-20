@@ -22,8 +22,8 @@ data class FullPharmacyDto(
     val email: String?,
     val wlasciciel_nazwa: String?,
 
-    val lat: Double?,
-    val lon: Double?,
+    val lat: Double,
+    val lon: Double,
 
     val godziny_otwarcia_poniedzialek: String?,
     val godziny_otwarcia_wtorek: String?,
@@ -53,8 +53,8 @@ data class FullPharmacyDto(
             telefon = null,
             email = null,
             wlasciciel_nazwa = null,
-            lat = null,
-            lon = null,
+            lat = 0.0,
+            lon = 0.0,
             godziny_otwarcia_poniedzialek = null,
             godziny_otwarcia_wtorek = null,
             godziny_otwarcia_sroda = null,

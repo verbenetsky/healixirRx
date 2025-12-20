@@ -81,15 +81,11 @@ fun EmailPasswordSignUp(
     val validation by emailPasswordSignUpViewModel.validationState.collectAsState()
     val authUiState by emailPasswordSignUpViewModel.authUiState.collectAsState()
 
-    // success tez jest traktowany jako loading zeby nie bylo mrugniecia ekranem podczas zmiany z Idle na loading na Success
-    val isLoading =
-        authUiState is EmailPasswordSignUpViewModel.AuthUiState.Loading
-
+    val isLoading = authUiState is EmailPasswordSignUpViewModel.AuthUiState.Loading
 
     DoubleBackReact(
         exit = { navigateToSingUpMethodScreen() },
         message = "Press back again to return to starting screen"
-
     )
 
     LaunchedEffect(emailPasswordSignUpViewModel.events) {

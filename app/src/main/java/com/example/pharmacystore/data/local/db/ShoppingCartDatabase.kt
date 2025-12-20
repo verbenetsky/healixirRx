@@ -9,7 +9,7 @@ import com.example.pharmacystore.data.local.entities.ShoppingCartEntity
 
 @Database(
     entities = [ShoppingCartEntity::class],
-    version = 1
+    version = 2
 )
 abstract class ShoppingCartDatabase : RoomDatabase() {
     abstract val shoppingCartDao: ShoppingCartDao

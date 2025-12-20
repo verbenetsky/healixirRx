@@ -85,7 +85,6 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
         ) {
             // ekran wyboru metody logowania
             composable(Screen.SignInOptions.route) {
-
                 ForcedDarkTheme {
                     SingInScreenOptions(
                         navigateToSingInWithPhoneNumber = { screen -> nav.navigate("authSms/${screen}") },
@@ -93,7 +92,6 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                         navigateToSingInWithEmail = { nav.navigate(Screen.EmailPasswordSignInScreen.route) }
                     )
                 }
-
             }
 
             // ekran wyboru metody rejestracji
@@ -367,12 +365,15 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                     remember(it) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
                 val drugViewModel: DrugViewModel = hiltViewModel(drugGraphEntry)
                 val pharmacyViewModel: PharmacyViewModel = hiltViewModel(pharmacyGraphEntry)
+                val mapViewModel: MapViewModel = hiltViewModel()
+                val latLng = mapViewModel.latLng.collectAsStateWithLifecycle()
 
                 PharmacyScreen(
                     pharmacyViewModel = pharmacyViewModel,
                     onBack = { nav.navigateUp() },
                     drugViewModel = drugViewModel,
-                    navigateToPharmacyStock = { nav.navigate(Screen.PharmacyStockScreen.route) }
+                    navigateToPharmacyStock = { nav.navigate(Screen.PharmacyStockScreen.route) },
+                    latLong = latLng.value
                 )
             }
 
@@ -485,9 +486,11 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                     //--------------------------------------------------------------------------------------
 
                     val cartItems by viewModel.cartItems.collectAsStateWithLifecycle()
+                    val totalCartPrice by viewModel.totalCartPrice.collectAsStateWithLifecycle()
 
                     ShoppingCartScreen(
                         items = cartItems,
+                        totalCartPrice = totalCartPrice,
                         event = viewModel.events,
                         onCheckoutClick = {
 
@@ -499,12 +502,16 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                                 packageNdc = item.packageNdc,
                                 pharmacyId = item.pharmacyId,
                                 usersQt = item.quantity,
-                                onSuccess = { viewModel.increaseQt(item) },
+                                onSuccess = {
+                                    viewModel.increaseQt(item)
+                                },
                                 // jesli zwrocone maxQt przez serwer jest mniejsze od ilosci w koszuku to wywoluje sie onSuccess
                                 // i jest zwiekszona ilosc rzeczy w koszyku
                             )
                         },
-                        onDecrease = { item -> viewModel.decreaseQt(item) },
+                        onDecrease = { item ->
+                            viewModel.decreaseQt(item)
+                        },
                         onRemove = { packageNdc, pharmacyId ->
                             viewModel.removeItem(
                                 packageNdc,
@@ -564,7 +571,8 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                                             pharmacyName = pharmacyInfo.name,
                                             address = pharmacyInfo.address,
                                             city = pharmacyInfo.city,
-                                            distanceKms = pharmacyInfo.distanceKms
+                                            distanceKms = pharmacyInfo.distanceKms,
+                                            price = medStockDrug.price
                                         )
                                     )
                                     // zanim dodac do koszyka sprawdzamy czy taka ilosc jaka wprowadzilismy + to co jest w koszyku
