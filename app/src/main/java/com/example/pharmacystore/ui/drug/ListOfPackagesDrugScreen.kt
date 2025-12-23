@@ -118,6 +118,8 @@ fun PickPackageDrugScreen(
                 }
                 is ShoppingCartViewModel.ShoppingCartEvent.ShowToastThereIsNotEnoughItemsInStock -> {
                     Toast.makeText(context, event.msg, Toast.LENGTH_SHORT).show() }
+
+                else -> Unit
             }
         }
     }

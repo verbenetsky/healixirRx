@@ -1,9 +1,13 @@
 package com.example.pharmacystore.data.repository
 
+import android.net.http.HttpException
 import com.example.pharmacystore.data.local.db.ShoppingCartDatabase
 import com.example.pharmacystore.domain.model.CartItem
 import com.example.pharmacystore.domain.model.toDomain
 import com.example.pharmacystore.domain.model.toEntity
+import com.example.pharmacystore.remoteApi.BuyingInfo
+import com.example.pharmacystore.remoteApi.CanBuyResponse
+import com.example.pharmacystore.remoteApi.DrugApi
 import com.example.pharmacystore.remoteApi.PharmacyApi
 import com.example.pharmacystore.repo.ShoppingCartRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -20,6 +24,7 @@ import kotlin.collections.emptyList
 class ShoppingCartRepositoryImpl @Inject constructor(
     private val db: ShoppingCartDatabase,
     private val pharmacyApi: PharmacyApi,
+    private val drugApi: DrugApi,
     private val auth: FirebaseAuth
 ) : ShoppingCartRepository {
 
@@ -77,6 +82,14 @@ class ShoppingCartRepositoryImpl @Inject constructor(
             db.shoppingCartDao.observeTotalCartPrice(auth.currentUser!!.uid)
         }
     }
+
+    override suspend fun checkIfCanBuy(info: BuyingInfo): Result<CanBuyResponse>  = runCatching {
+            val resp = drugApi.checkIfUserCanBuyProduct(info)
+            if (!resp.isSuccessful)
+                throw retrofit2.HttpException(resp)
+            resp.body() ?: throw IllegalStateException("empty body")
+        }
+
 
     override suspend fun clear() {
         db.shoppingCartDao.deleteAll()

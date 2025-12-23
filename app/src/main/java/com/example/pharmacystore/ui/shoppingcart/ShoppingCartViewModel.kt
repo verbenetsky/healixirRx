@@ -2,7 +2,10 @@ package com.example.pharmacystore.ui.shoppingcart
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.pharmacystore.common.toMessage
 import com.example.pharmacystore.domain.model.CartItem
+import com.example.pharmacystore.remoteApi.BuyingInfo
+import com.example.pharmacystore.remoteApi.ResponseAdjustments
 import com.example.pharmacystore.repo.ShoppingCartRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -42,6 +45,10 @@ class ShoppingCartViewModel @Inject constructor(private val repo: ShoppingCartRe
     private val _state = MutableStateFlow<ShoppingCartUiState>(ShoppingCartUiState.Idle)
     val state = _state.asStateFlow()
 
+    fun changeState(state: ShoppingCartUiState) {
+        _state.value = state
+    }
+
     private val _events = MutableSharedFlow<ShoppingCartEvent>(replay = 0, extraBufferCapacity = 1)
     val events = _events.asSharedFlow()
 
@@ -61,6 +68,25 @@ class ShoppingCartViewModel @Inject constructor(private val repo: ShoppingCartRe
         }
     }
 
+    fun checkIfCanBuy(info: BuyingInfo) {
+        viewModelScope.launch {
+            _state.value = ShoppingCartUiState.Loading
+            val res = repo.checkIfCanBuy(info)
+            res.onSuccess { response ->
+                if (response.ok) { // nie ma zadnych adjustmenst
+                    _events.tryEmit(ShoppingCartEvent.NavigateToSummaryScreen)
+                    println("no adjustments needed")
+                } else { // czegos brakuje na stanie
+                    _state.value = ShoppingCartUiState.CannotBuy(response.adjustments)
+                    println("some adjustments needed")
+                }
+            }.onFailure { err ->
+                _state.value = ShoppingCartUiState.Error(err.toMessage())
+                println("error")
+            }
+        }
+    }
+
     val totalCartPrice: StateFlow<Double> =
         repo.observeTotalCartPrice()
             .stateIn(
@@ -68,6 +94,7 @@ class ShoppingCartViewModel @Inject constructor(private val repo: ShoppingCartRe
                 initialValue = 0.0,
                 started = SharingStarted.WhileSubscribed(5_000)
             )
+
     fun increaseQt(item: CartItem) {
         viewModelScope.launch {
             println("zwieksza sie ilosc")
@@ -93,7 +120,7 @@ class ShoppingCartViewModel @Inject constructor(private val repo: ShoppingCartRe
                 }
             }.onFailure { err ->
                 _events.tryEmit(
-                    ShoppingCartEvent.ShowToastCoundNotVerifyStock(err.localizedMessage ?: "Error, Try again later")
+                    ShoppingCartEvent.ShowToastCoundNotVerifyStock(err.toMessage())
                 )
                 println(err)
             }
@@ -180,11 +207,19 @@ class ShoppingCartViewModel @Inject constructor(private val repo: ShoppingCartRe
     }
 
     sealed interface ShoppingCartUiState {
+        data object Loading : ShoppingCartUiState
         data class Error(val err: String) : ShoppingCartUiState
         data object Idle : ShoppingCartUiState
+
+        // ---------- purchase verification -------------
+        data object Success :
+            ShoppingCartUiState // jesli po sprawdzeniu wszytkie towary sa dostepne
+
+        data class CannotBuy(val adjustments: List<ResponseAdjustments>) : ShoppingCartUiState
     }
 
     sealed interface ShoppingCartEvent {
+        data object NavigateToSummaryScreen: ShoppingCartEvent
         data class ShowToastAdded(val msg: String) : ShoppingCartEvent
         data class ShowToastQtIsTooBig(val msg: String) : ShoppingCartEvent
         data class ShowToastCoundNotVerifyStock(val msg: String) : ShoppingCartEvent

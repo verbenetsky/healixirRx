@@ -192,6 +192,7 @@ fun DrugSearchScreen(
     }
 
     var textFieldText by remember { mutableStateOf("") }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {

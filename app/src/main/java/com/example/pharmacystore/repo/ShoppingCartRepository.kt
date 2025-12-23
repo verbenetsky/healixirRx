@@ -1,6 +1,8 @@
 package com.example.pharmacystore.repo
 
 import com.example.pharmacystore.domain.model.CartItem
+import com.example.pharmacystore.remoteApi.BuyingInfo
+import com.example.pharmacystore.remoteApi.CanBuyResponse
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -28,5 +30,7 @@ interface ShoppingCartRepository {
 
     fun observeCartSize(): Flow<Int>
     fun observeTotalCartPrice(): Flow<Double>
+
+    suspend fun checkIfCanBuy(info: BuyingInfo): Result<CanBuyResponse>
 
 }

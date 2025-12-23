@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -43,6 +44,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -50,17 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.pharmacystore.R
-import com.example.pharmacystore.ui.auth.AuthSmsViewModel
-import com.example.pharmacystore.ui.auth.signIn.AuthGateViewModel
-import com.example.pharmacystore.ui.auth.signIn.EmailPasswordSignInViewModel
-import com.example.pharmacystore.ui.auth.signUp.EmailPasswordSignUpViewModel
-import com.example.pharmacystore.ui.drug.DrugViewModel
-import com.example.pharmacystore.ui.shoppingcart.ShoppingCartViewModel
-import com.example.pharmacystore.ui.map.MapViewModel
-import com.example.pharmacystore.ui.pharmacies.PharmacyViewModel
-import com.example.pharmacystore.ui.profileScreen.ProfileScreenViewModel
-import com.example.pharmacystore.ui.profileSetUp.ProfileSetUpViewModel
-import com.example.pharmacystore.ui.settings.SettingsViewModel
+import com.example.pharmacystore.ui.theme.sagePerSecond
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +74,7 @@ fun MainScaffold(navController: NavHostController) {
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
+
     LaunchedEffect(route) {
         scrollBehavior.state.heightOffset =
             0f // bierzace przewiniecie topAppBar, jesli 0f w pelni widoczna, jesli ujemna to czesciowa schowana
@@ -88,45 +82,81 @@ fun MainScaffold(navController: NavHostController) {
             0f // jesli 0f to ekran jest na samej gorze i nie jest przewiniety, jesli offset > 0f to jest przewiniecie do dolu
     }
 
+
+    val isSummary = route == Screen.SummaryCheckoutScreen.route
+    val scrollBehaviorSummary = TopAppBarDefaults.pinnedScrollBehavior()
+    val appBarBehavior = if (isSummary) scrollBehaviorSummary else scrollBehavior
+
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.nestedScroll(appBarBehavior.nestedScrollConnection),
 
         topBar = {
-            if (parentGraphRoute != "auth_graph") {
-                val fraction = scrollBehavior.state.overlappedFraction
-                val base = MaterialTheme.colorScheme.surfaceColorAtElevation(0.dp)
-                val container = base.copy(alpha = 1f - fraction)
+            val isAuthGraph = parentGraphRoute == "auth_graph"
+            if (isAuthGraph) return@Scaffold
 
-                Box(
-                    modifier = Modifier
-                        .background(MaterialTheme.colorScheme.surface)
-                        .fillMaxWidth()
-                ) {
-                    TopAppBar(
-                        colors = topAppBarColors(
-                            containerColor = container,
-                            scrolledContainerColor = container
-                        ),
-                        scrollBehavior = scrollBehavior,
-                        title = {
-                            if (route == Screen.Settings.route || route == Screen.Map.route) {
-                                Box(
-                                    Modifier.fillMaxWidth(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    IconButton(
-                                        onClick = { navController.navigateUp() },
-                                        modifier = Modifier.align(Alignment.CenterStart)
+            val isSettings = route == Screen.Settings.route
+            val isMap = route == Screen.Map.route
+
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        if (route == Screen.SummaryCheckoutScreen.route) returnGradientBackGround() else SolidColor(
+                            MaterialTheme.colorScheme.surface
+                        )
+                    )
+            ) {
+                TopAppBar(
+                    colors = topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent
+                    ),
+                    scrollBehavior = appBarBehavior,
+                    navigationIcon = {
+                        if (isSummary || isSettings || isMap) {
+                            IconButton(onClick = { navController.navigateUp() }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = null,
+                                    tint = sagePerSecond
+                                )
+                            }
+                        }
+                    },
+                    title = {
+                        when {
+                            isSummary -> {
+                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = null
+                                        Text(
+                                            "Order summary",
+                                            style = MaterialTheme.typography.displayLarge
                                         )
                                     }
-                                    Text(if (route == Screen.Settings.route) "Settings" else "")
                                 }
-                            } else {
-                                Row(modifier = Modifier.fillMaxWidth()) {
+                            }
+
+                            isSettings -> {
+                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    Text("Settings")
+                                }
+                            }
+
+                            isMap -> {
+                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    Text("Map")
+                                }
+                            }
+
+                            else -> {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Text(
                                         "Healixir",
                                         style = MaterialTheme.typography.displayLarge.copy(fontSize = 45.sp),
@@ -143,13 +173,13 @@ fun MainScaffold(navController: NavHostController) {
                                 }
                             }
                         }
-                    )
-                }
+                    }
+                )
             }
         },
 
         bottomBar = {
-            if (parentGraphRoute == "main_graph" || parentGraphRoute == "shopping_cart_graph") {
+            if (parentGraphRoute == "main_graph" || (parentGraphRoute == "shopping_cart_graph" && route != "summary_checkout_screen")) {
                 Box(Modifier.animateContentSize()) {
                     AnimatedVisibility(
                         visible = showBottomBar,

@@ -34,11 +34,12 @@ class MainActivity : ComponentActivity() {
                 ?.parent
                 ?.route
 
+            val route = backStackEntry
+                ?.destination
+                ?.route
 
-            AppGradientRoot(graphRoute.toNavGraphOrNull()) {
-                PharmacyStoreTheme {
-                    MainScaffold(navController = navController)
-                }
+            AppGradientRoot(graphRoute.toNavGraphOrNull(), route) {
+                PharmacyStoreTheme { MainScaffold(navController = navController) }
             }
         }
     }

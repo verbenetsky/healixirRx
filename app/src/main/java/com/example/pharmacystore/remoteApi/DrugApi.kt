@@ -2,7 +2,10 @@ package com.example.pharmacystore.remoteApi
 
 import com.example.pharmacystore.data.remote.MedStockDrugDto
 import com.example.pharmacystore.data.remote.MedStockDto
+import retrofit2.Response
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Query
 
 
@@ -19,5 +22,32 @@ interface DrugApi {
     suspend fun getPharmacyStock(
         @Query("pharmacy_id") pharmacyId: Int,
     ): List<MedStockDrugDto>
+
+    // fun sprawdza dla pojedynczego rekorku w koszyku czy jest mozliwosc zakupu tego produktu w dokladnie tej ilosci
+
+    @POST("validate_checkout")
+    suspend fun checkIfUserCanBuyProduct(
+        @Body info: BuyingInfo
+    ): Response<CanBuyResponse>
 }
 
+data class BuyingInfo(
+    val listOfUserBuyProductCheckInfo: List<UserBuyProductCheckInfo>
+)
+
+data class UserBuyProductCheckInfo(
+    val pharmacyId: Int,
+    val packageNdc: String,
+    val qt: Int
+)
+
+data class CanBuyResponse(
+    val ok: Boolean,
+    val adjustments: List<ResponseAdjustments> = emptyList() // jesli empty to i ok musi byc true
+)
+
+data class ResponseAdjustments(
+    val packageNdc: String,
+    val requested: Int,
+    val available: Int
+)

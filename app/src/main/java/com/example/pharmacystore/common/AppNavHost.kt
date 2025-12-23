@@ -49,6 +49,7 @@ import com.example.pharmacystore.ui.settings.Settings
 import com.example.pharmacystore.ui.settings.SettingsViewModel
 import com.example.pharmacystore.ui.shoppingcart.ShoppingCartScreen
 import com.example.pharmacystore.ui.shoppingcart.ShoppingCartViewModel
+import com.example.pharmacystore.ui.summary.SummaryCheckoutScreen
 
 @Composable
 fun AppNavHost(nav: NavHostController, modifier: Modifier) {
@@ -245,17 +246,18 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                     navigateToProfile = { nav.navigate(Screen.ProfileScreen.route) },
                     navigateToDrugs = { nav.navigate(Screen.DrugSearchScreen.route()) },
                     navigateToPharmacies = { nav.navigate(Screen.ListOfPharmacies.route) },
-                    navigateToPharmacyStock = { }
+                    navigateToShoppingCart = { nav.navigate(Screen.CartScreen.route) }
                 )
             }
 
             composable(Screen.ProfileScreen.route) {
-                //---------------------------------ViewModel(s)-----------------------------------------
+                //---------------------------------ViewModel(s)-------------------------------------
                 val mainGraphEntry =
                     remember(it) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
                 val viewModel: ProfileScreenViewModel = hiltViewModel(mainGraphEntry)
                 val viewModel2: EmailPasswordSignInViewModel = hiltViewModel()
-                //--------------------------------------------------------------------------------------
+                //----------------------------------------------------------------------------------
+
                 ProfileScreen(
                     profileScreenViewModel = viewModel,
                     navigateToSettings = { nav.navigate("settings") },
@@ -390,19 +392,16 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                     })
                 ) { backStackEntry ->
                     //---------------------------------ViewModel(s)-----------------------------------------
-                    val mainGraphEntry =
-                        remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
-                    val shoppingGraphEntry =
-                        remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.SHOPPING_CART_GRAPH.toRegularString()) }
+                    val shoppingGraphEntry = remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.SHOPPING_CART_GRAPH.toRegularString()) }
+                    val mainGraphEntry = remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
+
                     val viewModel: ProfileScreenViewModel = hiltViewModel(mainGraphEntry)
-                    val shoppingCartViewModel: ShoppingCartViewModel =
-                        hiltViewModel(shoppingGraphEntry)
-                    val drugGraphEntry =
-                        remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
-                    val pharmacyGraphEntry =
-                        remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
-                    val drugViewModel: DrugViewModel = hiltViewModel(drugGraphEntry)
-                    val pharmacyViewModel: PharmacyViewModel = hiltViewModel(pharmacyGraphEntry)
+
+                    val shoppingCartViewModel: ShoppingCartViewModel = hiltViewModel(shoppingGraphEntry)
+
+                    val drugViewModel: DrugViewModel = hiltViewModel(mainGraphEntry)
+
+                    val pharmacyViewModel: PharmacyViewModel = hiltViewModel(mainGraphEntry)
                     //--------------------------------------------------------------------------------------
 
                     val drugNdc = backStackEntry.arguments?.getString("drugNdc")
@@ -487,14 +486,24 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
 
                     val cartItems by viewModel.cartItems.collectAsStateWithLifecycle()
                     val totalCartPrice by viewModel.totalCartPrice.collectAsStateWithLifecycle()
+                    val state by viewModel.state.collectAsStateWithLifecycle()
 
                     ShoppingCartScreen(
+                        state = state,
                         items = cartItems,
                         totalCartPrice = totalCartPrice,
                         event = viewModel.events,
-                        onCheckoutClick = {
+                        // zanim zrobimy checkOut to trzeba sprawdzic ze rzeczywiscie w bazie danych dostapne te rzeczy, robi sie to dla tego ze
+                        // jesli kilka userow ma ten sam produkt w koszuku i jeden kupi ten konkrenty produkt i ze stanu bedzie wynikac ze go juz nie ma to
+                        // trzeba zeby drugi user ktory mial to w koszuku nie mogl juz tego kupic
+                        // ewentualnie przejsc przez liste wszystkich userow co maja ten sam produkt w koszuku i usunac to stad ale jest to trudniejsze do zrealizacji
+                        // po tym jak sie sprawdzi czy user moze kupic napewno te rzeczy i jesli nie moze to poprostu usunac mu z koszuka je lub zmniejszyc ilosc i tyle
+                        // rowniez tutaj trzeba dodac mozliwosc rezerwacji konkretnych lekow po tym jak user kliknie checkcout
 
+                        onCheckoutClick = { info ->
+                            viewModel.checkIfCanBuy(info)
                         },
+
                         onIncrease = { item ->
                             // tutaj wywolac metode get z api zeby serwer zwrocil obecna ilosc tego leku w konkretnej aptece i tak sprawdzic czy mozna zwiekszyc ilos czy nie
                             // innej sensownej i w miare czystej metody nie widze
@@ -526,6 +535,12 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                         },
                         navigateToDrugSearchScreen = { drugNdc ->
                             nav.navigate(Screen.DrugSearchScreen.route(drugNdc))
+                        },
+                        navigateToSummaryScreen = {
+                            nav.navigate(Screen.SummaryCheckoutScreen.route)
+                        },
+                        changeStateToIdle = {
+                            viewModel.changeState(ShoppingCartViewModel.ShoppingCartUiState.Idle)
                         }
                     )
                 }
@@ -582,6 +597,28 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                         }
                     )
                 }
+
+                composable(Screen.SummaryCheckoutScreen.route) {
+                    //---------------------------------ViewModel(s)---------------------------------
+                    val shoppingGraphEntry = remember(it) { nav.getBackStackEntry(NavGraphs.SHOPPING_CART_GRAPH.toRegularString()) }
+                    val viewModel: ShoppingCartViewModel = hiltViewModel(shoppingGraphEntry)
+                    val mainGraphEntry = remember(it) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
+
+                    val profileViewModel: ProfileScreenViewModel = hiltViewModel(mainGraphEntry)
+                    //------------------------------------------------------------------------------
+
+
+                    val totalCartPrice by viewModel.totalCartPrice.collectAsStateWithLifecycle()
+                    val cartItems by viewModel.cartItems.collectAsStateWithLifecycle()
+                    val userData by profileViewModel.userData.collectAsState()
+
+                    SummaryCheckoutScreen(
+                        userData = userData,
+                        totalPrice = totalCartPrice,
+                        itemsCount = cartItems.sumOf { item -> item.quantity },
+                        onSubmitOrder = { },
+                    )
+                }
             }
         }
     }
@@ -615,6 +652,7 @@ sealed class Screen(val route: String) {
 
     data object PickPackageScreen : Screen("pick_package")
     data object CartScreen : Screen("cart")
+    data object SummaryCheckoutScreen : Screen("summary_checkout_screen")
     data object PharmacyStockScreen : Screen("pharmacy_stock")
     data object CheckIfUserLoggedInScreen : Screen("check_login_state")
 }

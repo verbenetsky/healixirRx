@@ -36,4 +36,5 @@ interface ShoppingCartDao {
 
     @Query("SELECT SUM(price * quantity)  FROM shopping_cart WHERE userUID = :userUID")
     fun observeTotalCartPrice(userUID: String): Flow<Double>
+
 }

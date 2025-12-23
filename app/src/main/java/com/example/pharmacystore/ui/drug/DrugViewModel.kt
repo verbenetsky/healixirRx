@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.map
+import com.example.pharmacystore.common.toMessage
 import com.example.pharmacystore.data.mappers.toDrug
 import com.example.pharmacystore.data.remote.MedStock
 import com.example.pharmacystore.data.remote.MedStockDrug
@@ -12,6 +13,7 @@ import com.example.pharmacystore.data.remote.toDrug
 import com.example.pharmacystore.data.remote.toMedStock
 import com.example.pharmacystore.data.repository.DrugRepositoryImpl
 import com.example.pharmacystore.domain.model.Drug
+import com.example.pharmacystore.repo.DrugRepository
 import com.example.pharmacystore.repo.LocationRepository
 import com.example.pharmacystore.ui.pharmacies.SortOption
 import com.example.pharmacystore.ui.pharmacies.SortOrder
@@ -32,7 +34,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DrugViewModel @Inject constructor(
-    private val repo: DrugRepositoryImpl,
+    private val repo: DrugRepository,
     private val mapRepo: LocationRepository
 ) : ViewModel() {
 
@@ -126,7 +128,7 @@ class DrugViewModel @Inject constructor(
                 println("state:")
                 println(_medStockState.value)
             }.onFailure { err ->
-                _medStockState.value = MedStockState.Error(err.localizedMessage ?: "unknown error")
+                _medStockState.value = MedStockState.Error(err.toMessage())
                 println("state failure:")
                 println(_medStockState.value)
             }

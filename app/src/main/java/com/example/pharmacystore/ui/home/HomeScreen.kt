@@ -15,11 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.LocalPharmacy
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -43,7 +43,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     navigateToProfile: () -> Unit,
     navigateToDrugs: () -> Unit,
-    navigateToPharmacyStock: () -> Unit,
+    navigateToShoppingCart: () -> Unit,
     navigateToPharmacies: () -> Unit
 ) {
     val ctx = LocalContext.current
@@ -82,10 +82,10 @@ fun HomeScreen(
         )
 
         StartTile(
-            title = "Check pharmacy stock",
-            subtitle = "Select a pharmacy and check its medicines",
-            icon = Icons.Outlined.LocalPharmacy,
-            onClick = { navigateToPharmacyStock() },
+            title = "Cart",
+            subtitle = "Review items and checkout",
+            icon = Icons.Outlined.ShoppingCart,
+            onClick = { navigateToShoppingCart() },
             modifier = Modifier.weight(1f, fill = true)
         )
     }

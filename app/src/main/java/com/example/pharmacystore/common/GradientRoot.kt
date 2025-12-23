@@ -15,13 +15,16 @@ import com.example.pharmacystore.ui.theme.surfaceDark
 // odpowiada to za gradient na status bar, bez tego nie dziala nic
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
-fun AppGradientRoot(graph: NavGraphs?, content: @Composable () -> Unit) {
+fun AppGradientRoot(graph: NavGraphs?, route: String?, content: @Composable () -> Unit) {
 
 
     Box(Modifier.fillMaxSize()) {
 
         // 1) pełnoekranowe tło – widać je też POD statusem
-        val bg: Brush = if (graph == NavGraphs.MAIN_GRAPH || graph == NavGraphs.SHOPPING_CART_GRAPH ) SolidColor(surfaceDark) else returnGradientBackGround()
+        val bg: Brush =
+            if (graph == NavGraphs.MAIN_GRAPH || graph == NavGraphs.SHOPPING_CART_GRAPH && route != Screen.SummaryCheckoutScreen.route) SolidColor(
+                surfaceDark
+            ) else returnGradientBackGround()
 
         Box(
             modifier = Modifier
