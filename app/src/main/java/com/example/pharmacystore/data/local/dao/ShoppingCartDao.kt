@@ -31,6 +31,9 @@ interface ShoppingCartDao {
     @Query("DELETE FROM shopping_cart")
     suspend fun deleteAll()
 
+    @Query("DELETE FROM shopping_cart where userUID = :uid")
+    suspend fun deleteCartItemsForOneUser(uid: String)
+
     @Query("SELECT COALESCE(SUM(quantity), 0) FROM shopping_cart WHERE userUID = :userUID")
     fun getCartSize(userUID: String): Flow<Int>
 

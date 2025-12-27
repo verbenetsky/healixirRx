@@ -3,15 +3,10 @@ package com.example.pharmacystore.ui.profileScreen
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Phone
-import androidx.compose.runtime.produceState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pharmacystore.domain.model.UserInformationModel
-import com.example.pharmacystore.domain.model.UserSettings
 import com.example.pharmacystore.repo.UserRepository
-import com.example.pharmacystore.ui.auth.AuthSmsViewModel.AuthSmsUiState
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +17,9 @@ import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
 @HiltViewModel
-class ProfileScreenViewModel @Inject constructor(private val userRepo: UserRepository) :
+class ProfileScreenViewModel @Inject constructor(
+    private val userRepo: UserRepository,
+) :
     ViewModel() {
 
     private val _userData = MutableStateFlow<UserInformationModel?>(null)

@@ -2,6 +2,7 @@ package com.example.pharmacystore.remoteApi
 
 import com.example.pharmacystore.data.remote.MedStockDrugDto
 import com.example.pharmacystore.data.remote.MedStockDto
+import com.example.pharmacystore.repo.OrderItem
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -29,7 +30,24 @@ interface DrugApi {
     suspend fun checkIfUserCanBuyProduct(
         @Body info: BuyingInfo
     ): Response<CanBuyResponse>
+
+    // fun zmniejsza ilosc kazdego produktu jaki kupil user updejtujac na serwerze tabele
+    @POST("update_stock")
+    suspend fun updateStockSize(
+        @Body data: OrderItemsInfo
+    ): Response<Unit>
 }
+
+data class OrderItemsInfo(
+    val listOfItems: List<StockDecrementItem>
+)
+
+data class StockDecrementItem(
+    val pharmacyId: Int = 0,
+    val packageNdc: String = "",
+    val quantity: Int = 0
+)
+
 
 data class BuyingInfo(
     val listOfUserBuyProductCheckInfo: List<UserBuyProductCheckInfo>

@@ -19,24 +19,28 @@ import androidx.navigation.navigation
 import com.example.pharmacystore.data.remote.displayName
 import com.example.pharmacystore.domain.model.CartItem
 import com.example.pharmacystore.domain.model.UserSettings
+import com.example.pharmacystore.repo.toOrderItem
+import com.example.pharmacystore.repo.toStockDecrementItem
 import com.example.pharmacystore.ui.auth.AuthSmsViewModel
 import com.example.pharmacystore.ui.auth.OriginScreen
-import com.example.pharmacystore.ui.auth.signUp.EmailPasswordSignUp
-import com.example.pharmacystore.ui.auth.signUp.EmailPasswordSignUpViewModel
-import com.example.pharmacystore.ui.auth.signUp.RegistrationScreenOptions
-import com.example.pharmacystore.ui.auth.signIn.SingInScreenOptions
 import com.example.pharmacystore.ui.auth.SmsAuthScreen
 import com.example.pharmacystore.ui.auth.signIn.AuthGate
 import com.example.pharmacystore.ui.auth.signIn.AuthGateViewModel
 import com.example.pharmacystore.ui.auth.signIn.CheckIfUserLoggedIn
 import com.example.pharmacystore.ui.auth.signIn.EmailPasswordSignIn
 import com.example.pharmacystore.ui.auth.signIn.EmailPasswordSignInViewModel
+import com.example.pharmacystore.ui.auth.signIn.SingInScreenOptions
+import com.example.pharmacystore.ui.auth.signUp.EmailPasswordSignUp
+import com.example.pharmacystore.ui.auth.signUp.EmailPasswordSignUpViewModel
+import com.example.pharmacystore.ui.auth.signUp.RegistrationScreenOptions
 import com.example.pharmacystore.ui.drug.DrugSearchScreen
 import com.example.pharmacystore.ui.drug.DrugViewModel
 import com.example.pharmacystore.ui.drug.PickPackageDrugScreen
 import com.example.pharmacystore.ui.home.HomeScreen
 import com.example.pharmacystore.ui.map.MapScreen
 import com.example.pharmacystore.ui.map.MapViewModel
+import com.example.pharmacystore.ui.orders.OrdersScreen
+import com.example.pharmacystore.ui.orders.OrdersViewModel
 import com.example.pharmacystore.ui.pharmacies.PharmaciesScreen
 import com.example.pharmacystore.ui.pharmacies.PharmacyScreen
 import com.example.pharmacystore.ui.pharmacies.PharmacyStockScreen
@@ -260,7 +264,8 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
 
                 ProfileScreen(
                     profileScreenViewModel = viewModel,
-                    navigateToSettings = { nav.navigate("settings") },
+                    navigateToSettings = { nav.navigate(Screen.Settings.route) },
+                    navigateToOrdersScreen = { nav.navigate(Screen.OrdersScreen.route) },
                     onLogoutClick = {
                         viewModel2.logOut(
                             onSuccess = {
@@ -392,12 +397,15 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                     })
                 ) { backStackEntry ->
                     //---------------------------------ViewModel(s)-----------------------------------------
-                    val shoppingGraphEntry = remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.SHOPPING_CART_GRAPH.toRegularString()) }
-                    val mainGraphEntry = remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
+                    val shoppingGraphEntry =
+                        remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.SHOPPING_CART_GRAPH.toRegularString()) }
+                    val mainGraphEntry =
+                        remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
 
                     val viewModel: ProfileScreenViewModel = hiltViewModel(mainGraphEntry)
 
-                    val shoppingCartViewModel: ShoppingCartViewModel = hiltViewModel(shoppingGraphEntry)
+                    val shoppingCartViewModel: ShoppingCartViewModel =
+                        hiltViewModel(shoppingGraphEntry)
 
                     val drugViewModel: DrugViewModel = hiltViewModel(mainGraphEntry)
 
@@ -600,30 +608,67 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
 
                 composable(Screen.SummaryCheckoutScreen.route) {
                     //---------------------------------ViewModel(s)---------------------------------
-                    val shoppingGraphEntry = remember(it) { nav.getBackStackEntry(NavGraphs.SHOPPING_CART_GRAPH.toRegularString()) }
+                    val shoppingGraphEntry =
+                        remember(it) { nav.getBackStackEntry(NavGraphs.SHOPPING_CART_GRAPH.toRegularString()) }
                     val viewModel: ShoppingCartViewModel = hiltViewModel(shoppingGraphEntry)
-                    val mainGraphEntry = remember(it) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
+                    val mainGraphEntry =
+                        remember(it) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
 
                     val profileViewModel: ProfileScreenViewModel = hiltViewModel(mainGraphEntry)
+                    val orderViewModel: OrdersViewModel = hiltViewModel()
                     //------------------------------------------------------------------------------
 
-
+                    val state by orderViewModel.state.collectAsStateWithLifecycle()
                     val totalCartPrice by viewModel.totalCartPrice.collectAsStateWithLifecycle()
                     val cartItems by viewModel.cartItems.collectAsStateWithLifecycle()
                     val userData by profileViewModel.userData.collectAsState()
 
                     SummaryCheckoutScreen(
+                        navigateToShoppingCart = {
+                            nav.navigate(Screen.CartScreen.route) {
+                                popUpTo(Screen.SummaryCheckoutScreen.route) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        },
                         userData = userData,
+                        events = orderViewModel.events,
+                        state = state,
                         totalPrice = totalCartPrice,
                         itemsCount = cartItems.sumOf { item -> item.quantity },
-                        onSubmitOrder = { },
+
+                        // po submit dodac wszystkie produktu usera do firestora do orders
+                        // i zupdejtowac pharmacyStock przez KTOR zmniejszajac ilosc towartu zgodnie z zakupem usera
+                        // narazie bedzie to zaimplementowano nie do konca poprawnie, ale potem zrobie to przez outbox todo
+
+                        onSubmitOrder = { delInfo, payMeth ->
+                            orderViewModel.placeOrder(
+                                paymentMethod = payMeth,
+                                orderItem = cartItems.toOrderItem(),
+                                stockDecrementItems = cartItems.toStockDecrementItem(),
+                                deliveryData = delInfo,
+                                totalPrice = totalCartPrice
+                            )
+                        },
+                        onSuccessDialogConfirmed = {
+                            orderViewModel.onSuccessDialogConfirmed()
+                        },
                     )
                 }
+            }
+
+            composable(Screen.OrdersScreen.route) {
+                val orderViewModel: OrdersViewModel = hiltViewModel()
+
+                val orders by orderViewModel.orders.collectAsStateWithLifecycle()
+
+                OrdersScreen(
+                    orders = orders,
+                    loadOrders = { orderViewModel.loadOrders() },
+                )
             }
         }
     }
 }
-
 
 sealed class Screen(val route: String) {
     // Auth flow
@@ -655,6 +700,8 @@ sealed class Screen(val route: String) {
     data object SummaryCheckoutScreen : Screen("summary_checkout_screen")
     data object PharmacyStockScreen : Screen("pharmacy_stock")
     data object CheckIfUserLoggedInScreen : Screen("check_login_state")
+
+    data object OrdersScreen : Screen("orders")
 }
 
 enum class NavGraphs {

@@ -194,17 +194,17 @@ class ShoppingCartViewModel @Inject constructor(private val repo: ShoppingCartRe
         }
     }
 
-    fun clearCart() {
-        viewModelScope.launch {
-            runCatching {
-                repo.clear()
-            }.onSuccess {
-                _events.tryEmit(ShoppingCartEvent.ShowToastAdded(msg = "Cart cleared"))
-            }.onFailure { err ->
-                _state.value = ShoppingCartUiState.Error(err.localizedMessage ?: "Error")
-            }
-        }
-    }
+//    fun clearCart() {
+//        viewModelScope.launch {
+//            runCatching {
+//                repo.clear()
+//            }.onSuccess {
+//                _events.tryEmit(ShoppingCartEvent.ShowToastAdded(msg = "Cart cleared"))
+//            }.onFailure { err ->
+//                _state.value = ShoppingCartUiState.Error(err.localizedMessage ?: "Error")
+//            }
+//        }
+//    }
 
     sealed interface ShoppingCartUiState {
         data object Loading : ShoppingCartUiState

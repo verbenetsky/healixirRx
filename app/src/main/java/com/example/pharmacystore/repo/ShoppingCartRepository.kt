@@ -9,7 +9,10 @@ import kotlinx.coroutines.flow.StateFlow
 interface ShoppingCartRepository {
 
     // sprawdza ile jest sztuk konkretnego leku dodano do koszyka
-    suspend fun howManyParticularItemsInCart(packageNdc: String, pharmacyId: Int): Int // zwraca ilosc tego towaru w koszuku
+    suspend fun howManyParticularItemsInCart(
+        packageNdc: String,
+        pharmacyId: Int
+    ): Int // zwraca ilosc tego towaru w koszuku
 
     suspend fun getMaxAvailableQuantity(pharmacyId: Int, packageNdc: String): Result<Int>
 
@@ -23,6 +26,8 @@ interface ShoppingCartRepository {
     // suspend fun getTotalPrice(): Result<Double>
 
     suspend fun clear()
+
+    suspend fun clearCartForOneUser()
 
     val totalCartPrice: StateFlow<Double>
 

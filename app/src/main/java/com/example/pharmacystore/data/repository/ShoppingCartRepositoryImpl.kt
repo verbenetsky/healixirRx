@@ -95,6 +95,10 @@ class ShoppingCartRepositoryImpl @Inject constructor(
         db.shoppingCartDao.deleteAll()
     }
 
+    override suspend fun clearCartForOneUser() {
+        db.shoppingCartDao.deleteCartItemsForOneUser(uid)
+    }
+
     override fun observeCart(): Flow<List<CartItem>> {
         return if (auth.currentUser?.uid == null) {
             flowOf(emptyList())

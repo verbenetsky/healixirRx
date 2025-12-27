@@ -374,7 +374,9 @@ fun ProfileSetUpScreen(
             }
 
             Button(
-                onClick = { profileSetUpViewModel.saveUser(userInformation) },
+                onClick = {
+                    profileSetUpViewModel.saveUser(userInformation)
+                },
                 modifier = Modifier
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
