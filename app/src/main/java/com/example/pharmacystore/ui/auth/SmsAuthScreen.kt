@@ -5,7 +5,6 @@ import android.app.Activity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +32,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material3.AlertDialogDefaults
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -76,6 +77,7 @@ import com.example.pharmacystore.ui.theme.sagePerSecond
 @Composable
 fun SmsAuthScreen(
     navigateToSingUpMethodScreen: () -> Unit,
+    navigateToHomeScreen: () -> Unit,
     navigateToAuthGate: () -> Unit,
     navigateToProfileSetUp: (String) -> Unit,
     authSmsViewModel: AuthSmsViewModel,
@@ -89,10 +91,29 @@ fun SmsAuthScreen(
     val cooldown by authSmsViewModel.remainingSec.collectAsState()
     val uiState by authSmsViewModel.uiState.collectAsState()
 
+    var dialogText by remember { mutableStateOf("") }
+    var showDialog by remember { mutableStateOf(false) }
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     DisposableEffect(Unit) {
         onDispose { authSmsViewModel.updateAuthSmsUiState(AuthSmsViewModel.AuthSmsUiState.Idle) }
+    }
+
+    LaunchedEffect(Unit) {
+        authSmsViewModel.events.collect { value ->
+            when (value) {
+                is AuthSmsViewModel.AuthSmsUiEvent.EmailSuccessfullyLinked -> {
+                    dialogText = value.msg
+                    showDialog = true
+                }
+
+                is AuthSmsViewModel.AuthSmsUiEvent.PhoneNumberSuccessfullyLinked -> {
+                    dialogText = value.msg
+                    showDialog = true
+                }
+            }
+        }
     }
 
     // Side effects na zmiany stanu UI
@@ -141,6 +162,7 @@ fun SmsAuthScreen(
 
             when (val s = uiState) {
                 is AuthSmsViewModel.AuthSmsUiState.Idle,
+
                 is AuthSmsViewModel.AuthSmsUiState.Failed -> {
                     EnterPhoneNumber(
                         phoneNumber = phoneNumber,
@@ -159,6 +181,45 @@ fun SmsAuthScreen(
                             AuthSmsViewModel.Err.NO_NETWORK -> "No internet connection."
                             AuthSmsViewModel.Err.GENERIC -> "Unexpected error."
                         } else null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                is AuthSmsViewModel.AuthSmsUiState.FailedLinking -> {
+                    EnterPhoneNumber(
+                        phoneNumber = phoneNumber,
+                        countryPrefix = countryPrefix,
+                        updatePhoneNumber = { authSmsViewModel.updatePhoneNumber(it) },
+                        updateCountryPrefix = { authSmsViewModel.updateCountryPrefixData(it) },
+                        remainingSec = cooldown,
+                        onLoadCooldown = { authSmsViewModel.loadCooldown(it) },
+                        sendConfirmationSms = { fullPhone ->
+                            authSmsViewModel.sendSms(fullPhone, activity)
+                            // cooldown ustawi VM po SuccessSend (onCodeSent)
+                        },
+                        error = when (val e = s.message) {
+                            LinkPhoneError.CodeExpired ->
+                                "The verification code has expired. Please request a new SMS code and try again."
+
+                            LinkPhoneError.InvalidCode ->
+                                "Incorrect verification code. Check the SMS and try again."
+
+                            LinkPhoneError.Network ->
+                                "No internet connection. Please check your network and try again."
+
+                            LinkPhoneError.NotLoggedIn ->
+                                "Your session has expired. Please sign in again and then link your phone number."
+
+                            LinkPhoneError.PhoneAlreadyInUse ->
+                                "This phone number is already linked to another account. Please use a different number or sign in with this phone number."
+
+                            LinkPhoneError.TooManyRequests ->
+                                "Too many attempts. Please wait a few minutes and try again."
+
+                            is LinkPhoneError.Unknown ->
+                                e.message?.takeIf { it.isNotBlank() }
+                                    ?: "Something went wrong while linking your phone number. Please try again."
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -183,7 +244,12 @@ fun SmsAuthScreen(
                     val verificationId = s.verificationId
                     EnterConfirmationCode(
                         onCheckClick = { code ->
-                            authSmsViewModel.verifySms(verificationId, code)
+                            println("code is $code")
+                            if (originScreen == OriginScreen.PROFILE) {
+                                authSmsViewModel.linkPhoneNumToEmail(code, verificationId)
+                            } else {
+                                authSmsViewModel.verifySms(verificationId, code)
+                            }
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -219,21 +285,51 @@ fun SmsAuthScreen(
 
     DoubleBackReact(
         exit = {
-            when (uiState) {
-                is AuthSmsViewModel.AuthSmsUiState.Idle,
-                is AuthSmsViewModel.AuthSmsUiState.Failed -> navigateToSingUpMethodScreen()
-                else -> authSmsViewModel.updateAuthSmsUiState(AuthSmsViewModel.AuthSmsUiState.Idle)
+            when (originScreen) {
+                OriginScreen.PROFILE -> {
+                    navigateToHomeScreen()
+                }
+
+                else -> {
+                    when (uiState) {
+                        is AuthSmsViewModel.AuthSmsUiState.Idle,
+                        is AuthSmsViewModel.AuthSmsUiState.Failed -> navigateToSingUpMethodScreen()
+
+                        else -> authSmsViewModel.updateAuthSmsUiState(AuthSmsViewModel.AuthSmsUiState.Idle)
+                    }
+                }
             }
         },
-        message = if (uiState is AuthSmsViewModel.AuthSmsUiState.Idle)
-            "Press back again to return to starting screen"
-        else
-            "Press back again to return to phone-number entering screen"
+        message =
+            when (originScreen) {
+                OriginScreen.PROFILE -> {
+                    "Press back again to return to home screen"
+                }
+
+                else -> {
+                    if (uiState is AuthSmsViewModel.AuthSmsUiState.Idle)
+                        "Press back again to return to starting screen"
+                    else
+                        "Press back again to return to phone-number entering screen"
+                }
+            }
+
     )
+
+    if (showDialog) {
+        InfoDialog(
+            text = dialogText,
+            onDismiss = {
+                showDialog = false
+                navigateToHomeScreen()
+            }
+        )
+    }
 }
 
 @Composable
 fun EnterPhoneNumber(
+    modifier: Modifier = Modifier,
     phoneNumber: String,
     countryPrefix: CountryPrefix,
     updatePhoneNumber: (String) -> Unit,
@@ -242,7 +338,6 @@ fun EnterPhoneNumber(
     onLoadCooldown: (String) -> Unit,            // VM.loadCooldown(fullPhone)
     sendConfirmationSms: (String) -> Unit,       // VM.sendSms(fullPhone, activity)
     error: String? = null,
-    modifier: Modifier = Modifier
 ) {
     val ink = smsAuthInk()
     val tfColors = smsAuthOutlinedTextFieldColors()
@@ -323,7 +418,13 @@ fun EnterPhoneNumber(
             onValueChange = updatePhoneNumber,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Filled.Phone, contentDescription = null, tint = sagePerSecond) },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Phone,
+                    contentDescription = null,
+                    tint = sagePerSecond
+                )
+            },
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             colors = tfColors,
@@ -365,7 +466,11 @@ fun EnterPhoneNumber(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Icon(
+                        Icons.Filled.ErrorOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
                     Spacer(Modifier.width(8.dp))
                     Text(error, color = ink, style = MaterialTheme.typography.bodySmall)
                 }
@@ -379,7 +484,6 @@ fun EnterConfirmationCode(
     onCheckClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val ink = smsAuthInk()
     val tfColors = smsAuthOutlinedTextFieldColors()
 
     var confirmationCode by remember { mutableStateOf("") }
@@ -395,7 +499,13 @@ fun EnterConfirmationCode(
             label = { Text("Enter confirmation code") },
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            leadingIcon = { Icon(Icons.Filled.Key, contentDescription = null, tint = sagePerSecond) },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Key,
+                    contentDescription = null,
+                    tint = sagePerSecond
+                )
+            },
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             colors = tfColors
@@ -483,7 +593,11 @@ private fun SmsHeaderCard(
                             .background(Color.White.copy(alpha = 0.20f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.PhoneAndroid, contentDescription = null, tint = sagePerSecond)
+                        Icon(
+                            Icons.Filled.PhoneAndroid,
+                            contentDescription = null,
+                            tint = sagePerSecond
+                        )
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -608,14 +722,58 @@ private fun SmsSuggestionRow(
     }
 }
 
-enum class OriginScreen { SIGN_UP, SIGN_IN }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InfoDialog(
+    text: String,
+    onDismiss: () -> Unit,
+) {
+    BasicAlertDialog(
+        onDismissRequest = onDismiss
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            tonalElevation = AlertDialogDefaults.TonalElevation
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Information",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Row(
+                    Modifier.fillMaxWidth()
+                ) {
+                    Spacer(Modifier.weight(1f))
+                    Button(onClick = { onDismiss() }) {
+                        Text("OK")
+                    }
+                }
+
+            }
+        }
+    }
+}
+
+
+enum class OriginScreen { SIGN_UP, SIGN_IN, PROFILE }
 
 private fun snackFor(origin: OriginScreen, isNew: Boolean): String =
     when (origin) {
         OriginScreen.SIGN_UP ->
             if (isNew) "This is a new phone number — complete your profile to finish sign-up."
             else "Signed in — this phone number is already linked to an account."
+
         OriginScreen.SIGN_IN ->
             if (isNew) "This is a new phone number — complete your profile to finish sign-up."
             else "Signed in — this phone number is already linked to an account."
+
+        else -> ""
     }

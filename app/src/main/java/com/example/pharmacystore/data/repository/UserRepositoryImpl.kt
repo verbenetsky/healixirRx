@@ -1,6 +1,5 @@
 package com.example.pharmacystore.data.repository
 
-import androidx.compose.material.icons.Icons
 import com.example.pharmacystore.domain.model.UserInformationModel
 import com.example.pharmacystore.domain.model.UserSettings
 import com.example.pharmacystore.repo.UserRepository
@@ -8,13 +7,11 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.google.firebase.firestore.toObject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,12 +26,20 @@ class UserRepositoryImpl @Inject constructor(
     private val uid: String
         get() = auth.currentUser?.uid ?: throw IllegalStateException("Not logged In")
 
+    override suspend fun addPhoneNumberToFirestore(phoneNumber: String) {
+        firestore
+            .collection("users")
+            .document(uid)
+            .update("phoneNumber", phoneNumber)
+            .await()
+    }
 
     override suspend fun getUserProfileSetUpCompleted(uid: String): Result<Boolean> = runCatching {
-            val snap = firestore.collection("users").document(uid).get().await()
-            if (!snap.exists()) return@runCatching false
+        val snap = firestore.collection("users").document(uid).get().await()
+        if (!snap.exists()) return@runCatching false
         (snap.get("configurationCompleted") ?: false) as Boolean
-        }
+    }
+
 
 
     // nadpisuje obecny dokument dodajac do niego nowe dane
@@ -132,7 +137,6 @@ class UserRepositoryImpl @Inject constructor(
         }
     }.conflate() // pomija stane posrednie i przepuszcza tylko najnowsza wartosc
         .distinctUntilChanged() // jeśli nowa wartość jest równa poprzedniej ( wedlug equals() ), nie zostanie wyemitowana
-
 
 }
 

@@ -21,4 +21,5 @@ interface UserRepository {
 
     suspend fun getUserProfileSetUpCompleted(uid: String): Result<Boolean>
 
+    suspend fun addPhoneNumberToFirestore(phoneNumber: String)
 }

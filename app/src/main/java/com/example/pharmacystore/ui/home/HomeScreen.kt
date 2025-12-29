@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.LocalPharmacy
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
@@ -34,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import com.example.pharmacystore.common.DoubleBackReact
 import com.example.pharmacystore.ui.theme.sagePerFirst
 import com.example.pharmacystore.ui.theme.sagePerSecond
@@ -48,7 +48,12 @@ fun HomeScreen(
 ) {
     val ctx = LocalContext.current
     val activity = ctx as Activity
-    DoubleBackReact(exit = { activity.finish() })
+
+//    LaunchedEffect(Unit) {
+//        Log.d("NAV", "HOME prev = ${nav.previousBackStackEntry?.destination?.route}")
+//    }
+
+     DoubleBackReact(exit = { activity.finish() })
 
     Column(
         modifier

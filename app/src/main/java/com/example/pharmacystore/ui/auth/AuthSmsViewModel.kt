@@ -6,21 +6,21 @@ import androidx.lifecycle.viewModelScope
 import com.example.pharmacystore.data.datastore.DataStoreRepo
 import com.example.pharmacystore.data.local.phoneprefixes.CountryPrefix
 import com.example.pharmacystore.repo.AuthRepository
+import com.example.pharmacystore.repo.UserRepository
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.FirebaseTooManyRequestsException
+import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -29,9 +29,12 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthSmsViewModel @Inject constructor(
     private val repo: AuthRepository,
+    private val userRepo: UserRepository,
     private val dataStoreRepo: DataStoreRepo
 ) : ViewModel() {
 
+    private val _events = MutableSharedFlow<AuthSmsUiEvent>(replay = 0, extraBufferCapacity = 1)
+    val events = _events.asSharedFlow()
     private val cooldownSec = 60L
 
     private val _remainingSec = MutableStateFlow(0L)               // ile sekund zostało
@@ -93,12 +96,38 @@ class AuthSmsViewModel @Inject constructor(
         }
     }
 
+
     /** Zapis + start licznika. Wołane po udanym wysłaniu SMS (onCodeSent). */
     fun setCooldown(fullPhone: String) {
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             dataStoreRepo.saveCooldownAndPhoneNumber(fullPhone, now)
             startCountdown(endTimeMs = now + cooldownSec * 1000)
+        }
+    }
+
+    fun linkPhoneNumToEmail(smsCode: String, verificationId: String) {
+        println("linkPhoneToCurrentUser start")
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.value = AuthSmsUiState.Loading
+            repo.linkPhoneToCurrentUser(verificationId, smsCode)
+                .onSuccess {
+                    println("success linkPhoneToCurrentUser")
+                    _events.tryEmit(
+                        AuthSmsUiEvent.PhoneNumberSuccessfullyLinked(
+                            "Your phone number has been successfully linked to your account. " +
+                                    "This means your existing account (created with email and password) now also has phone sign-in enabled. " +
+                                    "From now on, you can log in either with your email and password or by using this phone number " +
+                                    "(after receiving an SMS verification code). Your account ID and data remain the same — we only added an " +
+                                    "additional sign-in method for convenience and security."
+                        )
+                    )
+                    userRepo.addPhoneNumberToFirestore(_phoneNumber.value)
+                }
+                .onFailure { err ->
+                    println(err)
+                    _uiState.value = AuthSmsUiState.FailedLinking(err.toLinkPhoneError())
+                }
         }
     }
 
@@ -138,12 +167,18 @@ class AuthSmsViewModel @Inject constructor(
         _uiState.value = state
     }
 
+    sealed class AuthSmsUiEvent {
+        data class PhoneNumberSuccessfullyLinked(val msg: String) : AuthSmsUiEvent()
+        data class EmailSuccessfullyLinked(val msg: String) : AuthSmsUiEvent()
+    }
+
     sealed class AuthSmsUiState {
         data object Idle : AuthSmsUiState()
         data object Loading : AuthSmsUiState()
         data class SuccessSend(val verificationId: String) : AuthSmsUiState()
         data class Success(val isNew: Boolean) : AuthSmsUiState()
         data class Failed(val message: Err) : AuthSmsUiState()
+        data class FailedLinking(val message: LinkPhoneError) : AuthSmsUiState()
     }
 
     enum class Err { BAD_PHONE, TOO_MANY, NO_NETWORK, GENERIC }
@@ -154,7 +189,48 @@ class AuthSmsViewModel @Inject constructor(
             "ERROR_INVALID_PHONE_NUMBER" -> Err.BAD_PHONE
             else -> Err.GENERIC
         }
+
         is FirebaseTooManyRequestsException -> Err.TOO_MANY
         else -> Err.GENERIC
     }
+}
+
+
+fun Throwable.toLinkPhoneError(): LinkPhoneError {
+    if (this.message == "User not logged in") return LinkPhoneError.NotLoggedIn
+
+    return when (this) {
+        is FirebaseAuthInvalidCredentialsException -> {
+            // czasem tu wpada zły kod / wygasła sesja
+            when ((this as? FirebaseAuthException)?.errorCode) {
+                "ERROR_SESSION_EXPIRED" -> LinkPhoneError.CodeExpired
+                else -> LinkPhoneError.InvalidCode
+            }
+        }
+
+        is FirebaseAuthUserCollisionException -> LinkPhoneError.PhoneAlreadyInUse
+        is FirebaseTooManyRequestsException -> LinkPhoneError.TooManyRequests
+        is FirebaseNetworkException -> LinkPhoneError.Network
+        is FirebaseAuthException -> {
+            // fallback po kodzie
+            when (this.errorCode) {
+                "ERROR_TOO_MANY_REQUESTS" -> LinkPhoneError.TooManyRequests
+                "ERROR_SESSION_EXPIRED" -> LinkPhoneError.CodeExpired
+                "ERROR_CREDENTIAL_ALREADY_IN_USE" -> LinkPhoneError.PhoneAlreadyInUse
+                else -> LinkPhoneError.Unknown(this.message)
+            }
+        }
+
+        else -> LinkPhoneError.Unknown(this.message)
+    }
+}
+
+sealed interface LinkPhoneError {
+    data object InvalidCode : LinkPhoneError
+    data object CodeExpired : LinkPhoneError
+    data object PhoneAlreadyInUse : LinkPhoneError
+    data object NotLoggedIn : LinkPhoneError
+    data object TooManyRequests : LinkPhoneError
+    data object Network : LinkPhoneError
+    data class Unknown(val message: String?) : LinkPhoneError
 }

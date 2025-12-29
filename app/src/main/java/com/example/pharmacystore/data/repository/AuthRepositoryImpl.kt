@@ -5,7 +5,6 @@ import com.example.pharmacystore.domain.model.PhoneAuthResult
 import com.example.pharmacystore.repo.AuthRepository
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
@@ -60,7 +59,10 @@ class AuthRepositoryImpl @Inject constructor(
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phoneNumber)
             .setActivity(activity)               // ważne: Activity, nie sam Context
-            .setTimeout(60L, TimeUnit.SECONDS)   // czas okna auto-retrieval (nie blokuje ręcznego wpisu)
+            .setTimeout(
+                60L,
+                TimeUnit.SECONDS
+            )   // czas okna auto-retrieval (nie blokuje ręcznego wpisu)
             .setCallbacks(callbacks)
             .build()
 
@@ -77,6 +79,7 @@ class AuthRepositoryImpl @Inject constructor(
         verificationId: String,
         code: String
     ): Result<PhoneAuthResult> = runCatching {
+
         require(verificationId.isNotBlank()) { "verificationId is blank" }
         require(code.isNotBlank()) { "code is blank" }
 
@@ -103,4 +106,28 @@ class AuthRepositoryImpl @Inject constructor(
                 Unit
             }
         }
+
+    override suspend fun linkEmail() {
+//        val phoneCred = PhoneAuthProvider.getCredential(verificationId, smsCode)
+//
+//        val user = FirebaseAuth.getInstance().currentUser ?: return
+//        user.linkWithCredential(phoneCred)
+    }
+
+    override suspend fun linkPhoneToCurrentUser(
+        smsCode: String,
+        verificationId: String
+    ): Result<Unit> = runCatching {
+        require(smsCode.isNotBlank()) { "verificationId is blank" }
+        require(verificationId.isNotBlank()) { "code is blank" }
+
+        val user = auth.currentUser ?: error("User not logged in")
+
+        val credential = PhoneAuthProvider.getCredential(smsCode, verificationId)
+
+        user.linkWithCredential(credential).await()
+        Unit
+    }
+
+
 }

@@ -4,11 +4,18 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -17,31 +24,59 @@ import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material3.*
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
-import androidx.compose.runtime.*
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.material3.surfaceColorAtElevation
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import com.example.pharmacystore.common.toMessage
-import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlin.math.round
-import androidx.core.net.toUri
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 // ekran odpowiadajacy za wyswietlenie listy aptek
 // bedzie mozliwosc odfiltorowania po odleglosci od miejsca zamieszkania
-
-
 enum class SortOption { Distance, Name }
 
 enum class SortOrder { ASC, DESC }
@@ -53,6 +88,7 @@ fun PharmaciesScreen(
     navigateToPharmacyScreen: () -> Unit,
     address: String,
 ) {
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     val radius by viewModel.radius.collectAsStateWithLifecycle()
@@ -60,74 +96,74 @@ fun PharmaciesScreen(
     val sortedBy by viewModel.sortedBy.collectAsStateWithLifecycle()
     val isOpen by viewModel.isOpen.collectAsStateWithLifecycle()
 
-    val hasUserSearched by viewModel.hasUserSearched.collectAsStateWithLifecycle()
 
     // ----------------------- Przewijalnosc listy -------------------------------------------------
     val topBarState = rememberTopAppBarState()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(topBarState)
-    val listState = rememberLazyListState()
+
+    // scroll listy
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = viewModel.savedIndex,
+        initialFirstVisibleItemScrollOffset = viewModel.savedOffset
+    )
     // ---------------------------------------------------------------------------------------------
 
     val items = viewModel.pharmaciesPagingFlow.collectAsLazyPagingItems()
 
-    if (hasUserSearched) {
-        LaunchedEffect(sortedBy, sortOrder) {
-            snapshotFlow { items.loadState.refresh }
-                .filter { it is LoadState.NotLoading }
-                .first()
-            listState.scrollToItem(0)
+    LaunchedEffect(items.loadState) {
+        if (items.loadState.refresh is LoadState.Error) {
+            val error = (items.loadState.refresh as LoadState.Error).error
+            Toast.makeText(
+                context,
+                error.toMessage(),
+                Toast.LENGTH_SHORT
+            ).show()
         }
-
-        LaunchedEffect(items.loadState) {
-            if (items.loadState.refresh is LoadState.Error) {
-                val error = (items.loadState.refresh as LoadState.Error).error
-                Toast.makeText(
-                    context,
-                    error.toMessage(),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-    }
-
-    // scroll listy
-    LaunchedEffect(Unit) {
-        listState.scrollToItem(
-            index = viewModel.savedIndex,
-            scrollOffset = viewModel.savedOffset
-        )
     }
 
     LaunchedEffect(address) {
         println(address)
         viewModel.ensureLocationFromAddressIfNeeded(address)
     }
+    var searchJob by remember { mutableStateOf<Job?>(null) }
 
     PharmacyScreenContent(
         sortedBy = sortedBy,
         sortOrder = sortOrder,
-        onSortedByChanged = { sortedBy -> viewModel.changeSortedBy(sortedBy) },
-
         radius = radius,
-
         isOpen = isOpen,
 
-        hasUserSearched = hasUserSearched,
-
-        onToggleOpenNow = { state ->
-            viewModel.changeIsOpen(state)
-        },
-
+        onToggleOpenNow = { state -> viewModel.changeIsOpen(state) },
+        onSortedByChanged = { sortedBy -> viewModel.changeSortedBy(sortedBy) },
         onSortOrderChanged = { order -> viewModel.changeSortOrder(order) },
-
         onRadiusChanged = { rad -> viewModel.changeRadius(rad) },
 
         pharmacies = items,
+
         onSearchClick = {
-            // najpierw
-            viewModel.applyFilters()
-            items.refresh()
+            if (items.loadState.refresh is LoadState.Loading) return@PharmacyScreenContent  // blokada na double click
+
+            searchJob?.cancel()
+            searchJob = scope.launch {
+                viewModel.applyFilters()
+
+                // natychmiast do góry (feedback dla usera)
+                listState.scrollToItem(0)
+
+                items.refresh()
+
+                // poczekaj aż refresh faktycznie "przejdzie" przez Loading i się zakończy
+                val end = snapshotFlow { items.loadState.refresh }
+                    .dropWhile { it is LoadState.NotLoading } // wymusza czekanie na Loading
+                    .first { it is LoadState.NotLoading || it is LoadState.Error }
+
+                // po zakończeniu refresh jeszcze raz ustaw top (po podmianie danych)
+                if (end is LoadState.NotLoading) {
+                    listState.scrollToItem(0)
+                }
+            }
         },
+
         scrollBehavior = scrollBehavior,
         listState = listState,
         navigateToPharmacyScreen = { id ->
@@ -141,7 +177,6 @@ fun PharmaciesScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PharmacyScreenContent(
-    hasUserSearched: Boolean,
     radius: Int,
     isOpen: Boolean,
     navigateToPharmacyScreen: (Int) -> Unit,
@@ -150,7 +185,7 @@ fun PharmacyScreenContent(
     onSortedByChanged: (SortOption) -> Unit,
     onSortOrderChanged: (SortOrder) -> Unit,
     onRadiusChanged: (Int) -> Unit,
-    onSearchClick: (radius: Int) -> Unit,
+    onSearchClick: () -> Unit,
     pharmacies: LazyPagingItems<PharmacyLight>?,
     onToggleOpenNow: (Boolean) -> Unit = {},
 
@@ -207,7 +242,7 @@ fun PharmacyScreenContent(
                                 onToggleOpenNow(it)
                             },
                             onSearchClick = {
-                                onSearchClick(radius)
+                                onSearchClick()
                             },
                             onSortChanged = { order ->
                                 onSortOrderChanged(order)
@@ -219,7 +254,7 @@ fun PharmacyScreenContent(
             )
         }
     ) { inner ->
-        if (pharmacies != null && hasUserSearched) {
+        if (pharmacies != null) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -278,8 +313,6 @@ fun PharmacyScreenContent(
                         }
                     }
                 }
-
-
             }
         }
     }

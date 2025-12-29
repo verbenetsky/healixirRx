@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -57,6 +58,10 @@ import com.example.pharmacystore.ui.summary.SummaryCheckoutScreen
 
 @Composable
 fun AppNavHost(nav: NavHostController, modifier: Modifier) {
+
+    LogNavHostBackStack(nav)
+    LogVisibleEntries(nav)
+
     NavHost(
         navController = nav,
         startDestination = NavGraphs.CHECK_IF_LOGGED_IN_GRAPH.toRegularString(),
@@ -70,11 +75,16 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
         ) {
             composable(Screen.CheckIfUserLoggedInScreen.route) {
                 val viewModel: EmailPasswordSignInViewModel = hiltViewModel()
-
                 CheckIfUserLoggedIn(
                     isLoggedIn = viewModel.isLoggedIn.collectAsStateWithLifecycle().value,
                     navigateToLogInScreen = {
-                        nav.navigate(Screen.SignInOptions.route)
+                        nav.navigate(NavGraphs.AUTH_GRAPH.toRegularString()) {
+                            popUpTo(NavGraphs.CHECK_IF_LOGGED_IN_GRAPH.toRegularString()) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
+                        }
+
                     },
                     navigateToAuthGateScreen = {
                         nav.navigate(Screen.AuthGate.route)
@@ -90,42 +100,36 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
         ) {
             // ekran wyboru metody logowania
             composable(Screen.SignInOptions.route) {
-                ForcedDarkTheme {
-                    SingInScreenOptions(
-                        navigateToSingInWithPhoneNumber = { screen -> nav.navigate("authSms/${screen}") },
-                        navigateToRegistrationOptions = { nav.navigate(Screen.RegisterOptions.route) },
-                        navigateToSingInWithEmail = { nav.navigate(Screen.EmailPasswordSignInScreen.route) }
-                    )
-                }
+                SingInScreenOptions(
+                    navigateToSingInWithPhoneNumber = { screen -> nav.navigate("authSms/${screen}") },
+                    navigateToRegistrationOptions = { nav.navigate(Screen.RegisterOptions.route) },
+                    navigateToSingInWithEmail = { nav.navigate(Screen.EmailPasswordSignInScreen.route) }
+                )
             }
 
             // ekran wyboru metody rejestracji
             composable(Screen.RegisterOptions.route) {
-                ForcedDarkTheme {
-                    RegistrationScreenOptions(
-                        navigateToSignInScreenOptions = { nav.navigate(Screen.SignInOptions.route) },
-                        onPhoneRegister = { screen -> nav.navigate("authSms/${screen}") },
-                        onEmailRegister = { nav.navigate(Screen.EmailPasswordSignUpScreen.route) }
-                    )
-                }
+                RegistrationScreenOptions(
+                    navigateToSignInScreenOptions = { nav.navigate(Screen.SignInOptions.route) },
+                    onPhoneRegister = { screen -> nav.navigate("authSms/${screen}") },
+                    onEmailRegister = { nav.navigate(Screen.EmailPasswordSignUpScreen.route) }
+                )
             }
 
             // ekran z text fieldami gdzie wpisujemy email i haslo
             composable(Screen.EmailPasswordSignUpScreen.route) {
                 val viewModel: EmailPasswordSignUpViewModel = hiltViewModel()
-                ForcedDarkTheme {
-                    EmailPasswordSignUp(
-                        emailPasswordSignUpViewModel = viewModel,
-                        navigateToAccountSetUpScreen = { email ->
-                            nav.navigate("profileSetUp?email=${Uri.encode(email)}")
-                        },
-                        navigateToSingUpMethodScreen = {
-                            nav.navigate(Screen.SignInOptions.route) {
-                                popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
-                            }
-                        },
-                    )
-                }
+                EmailPasswordSignUp(
+                    emailPasswordSignUpViewModel = viewModel,
+                    navigateToAccountSetUpScreen = { email ->
+                        nav.navigate("profileSetUp?email=${Uri.encode(email)}")
+                    },
+                    navigateToSingUpMethodScreen = {
+                        nav.navigate(Screen.SignInOptions.route) {
+                            popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
+                        }
+                    },
+                )
             }
 
             // dwa ekrany gdzie wpisujemy swoj numer telefonu a potem wpisujemy kod potwierdzenia
@@ -139,23 +143,24 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                 val viewModel: AuthSmsViewModel = hiltViewModel()
                 val screen = backStackEntry.arguments?.getSerializable("screen") as OriginScreen
 
-                ForcedDarkTheme {
-                    SmsAuthScreen(
-                        navigateToProfileSetUp = { phoneNumber ->
-                            nav.navigate("profileSetUp?phoneNumber=${Uri.encode(phoneNumber)}")
-                        },
-                        authSmsViewModel = viewModel,
-                        navigateToSingUpMethodScreen = {
-                            nav.navigate(Screen.SignInOptions.route) {
-                                popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
-                            }
-                        },
-                        navigateToAuthGate = {
-                            nav.navigate(Screen.AuthGate.route)
-                        },
-                        originScreen = screen
-                    )
-                }
+                SmsAuthScreen(
+                    navigateToHomeScreen = {
+                        nav.popBackStack()
+                    },
+                    navigateToProfileSetUp = { phoneNumber ->
+                        nav.navigate("profileSetUp?phoneNumber=${Uri.encode(phoneNumber)}")
+                    },
+                    authSmsViewModel = viewModel,
+                    navigateToSingUpMethodScreen = {
+                        nav.navigate(Screen.SignInOptions.route) {
+                            popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
+                        }
+                    },
+                    navigateToAuthGate = {
+                        nav.navigate(Screen.AuthGate.route)
+                    },
+                    originScreen = screen,
+                )
             }
 
             // ekran gdzie robimy profile setup
@@ -178,47 +183,43 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                 val phone = backStackEntry.arguments?.getString("phoneNumber")
                 val email = backStackEntry.arguments?.getString("email")
 
-                ForcedDarkTheme {
-                    ProfileSetUpScreen(
-                        profileSetUpViewModel = viewModel,
-                        navigateToSignIn = {
-                            nav.navigate(Screen.SignInOptions.route)
-                        },
-                        navigateToHomeScreen = {
-                            nav.navigate(Screen.HomeScreen.route) {
-                                popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) {
-                                    inclusive = true
-                                } // usuwa caly stack
-                                launchSingleTop = true
-                                // ochrona przed wielokrotnym nakładaniem tej samej destynacji na szczycie BackStacku.
-                            }
-                        },
-                        phoneNumber = phone,
-                        email = email
-                    )
-                }
+                ProfileSetUpScreen(
+                    profileSetUpViewModel = viewModel,
+                    navigateToSignIn = {
+                        nav.navigate(Screen.SignInOptions.route)
+                    },
+                    navigateToHomeScreen = {
+                        nav.navigate(Screen.HomeScreen.route) {
+                            popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) {
+                                inclusive = true
+                            } // usuwa caly stack
+                            launchSingleTop = true
+                            // ochrona przed wielokrotnym nakładaniem tej samej destynacji na szczycie BackStacku.
+                        }
+                    },
+                    phoneNumber = phone,
+                    email = email
+                )
             }
 
             composable(Screen.EmailPasswordSignInScreen.route) {
                 val viewModel: EmailPasswordSignInViewModel = hiltViewModel()
 
-                ForcedDarkTheme {
-                    EmailPasswordSignIn(
-                        emailPasswordSignInViewModel = viewModel,
+                EmailPasswordSignIn(
+                    emailPasswordSignInViewModel = viewModel,
 //                    navigateToHomeScreen = {
 //                        nav.navigate(Screen.HomeScreen.route) {
 //                            popUpTo("auth_graph") { inclusive = true }
 //                            launchSingleTop = true
 //                        }
 //                    },
-                        navigateToSingInMethodScreen = {
-                            nav.navigate(Screen.SignInOptions.route) {
-                                popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
-                            }
-                        },
-                        navigateToAuthGate = { nav.navigate(Screen.AuthGate.route) }
-                    )
-                }
+                    navigateToSingInMethodScreen = {
+                        nav.navigate(Screen.SignInOptions.route) {
+                            popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
+                        }
+                    },
+                    navigateToAuthGate = { nav.navigate(Screen.AuthGate.route) }
+                )
             }
 
             composable(Screen.AuthGate.route) {
@@ -233,8 +234,10 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                         }
                     },
                     navigateToHomeScreen = {
-                        nav.navigate(Screen.HomeScreen.route) {
-                            popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
+                        nav.navigate(NavGraphs.MAIN_GRAPH.toRegularString()) {
+                            popUpTo(nav.graph.findStartDestination().id) {
+                                inclusive = true
+                            }
                             launchSingleTop = true
                         }
                     },
@@ -266,6 +269,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                     profileScreenViewModel = viewModel,
                     navigateToSettings = { nav.navigate(Screen.Settings.route) },
                     navigateToOrdersScreen = { nav.navigate(Screen.OrdersScreen.route) },
+                    navigateToProvidePhoneNumberScreen = { nav.navigate("authSms/${OriginScreen.PROFILE}") },
                     onLogoutClick = {
                         viewModel2.logOut(
                             onSuccess = {
@@ -385,7 +389,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
             }
 
             navigation(
-                startDestination = Screen.HomeScreen.route,
+                startDestination = Screen.DrugSearchScreen.route(),
                 route = NavGraphs.SHOPPING_CART_GRAPH.toRegularString(),
             ) {
                 composable(

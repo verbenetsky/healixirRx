@@ -1,33 +1,30 @@
 package com.example.pharmacystore.common
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialShapes
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -35,13 +32,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.pharmacystore.ui.theme.darkScheme
+import androidx.navigation.NavHostController
 import com.example.pharmacystore.ui.theme.sagePerFirst
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -263,17 +259,6 @@ fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
-// cale logowanie, uzupelnienie profila i rejestracja znajduje sie w dark theme i zeby to wymusic stosuje sie tego:
-@Composable
-fun ForcedDarkTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = darkScheme,
-        typography = MaterialTheme.typography,
-        shapes = MaterialTheme.shapes,
-        content = content
-    )
-}
-
 // podlicza dystanc pomiedzy userem a apteką
 fun calculateDistance(lat1: Double , lon1:Double , lat2:Double , lon2: Double ): Double {
     val lat1Rad:Double = Math.toRadians(lat1)
@@ -285,6 +270,69 @@ fun calculateDistance(lat1: Double , lon1:Double , lat2:Double , lon2: Double ):
     val y = (lat2Rad - lat1Rad)
     val distance = sqrt(x * x + y * y) * 6371
     return distance
+}
+
+
+
+@SuppressLint("RestrictedApi")
+@Composable
+fun LogNavHostBackStack(navController: NavHostController, tag: String = "NAV") {
+    val stack = remember { mutableStateListOf<Pair<Int, String>>() }
+
+    fun isNoiseKey(key: String): Boolean =
+        key.startsWith("android-support-nav:")
+                || key.startsWith("androidx.navigation:")
+                || key == "deepLinkIntent"
+                || key == "android.intent.extra.INTENT"
+
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect { entry ->
+            val entryId = System.identityHashCode(entry)
+
+            val route = entry.destination.route ?: entry.destination.displayName
+
+            val argsBundle = entry.arguments
+            val args = argsBundle
+                ?.keySet()
+                ?.asSequence()
+                ?.filterNot(::isNoiseKey)
+                ?.mapNotNull { k ->
+                    val v = argsBundle.get(k)
+                    // pomiń null/blank i bardzo długie wartości
+                    val s = v?.toString()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    "$k=$s"
+                }
+                ?.joinToString(", ")
+                .orEmpty()
+
+            val label = if (args.isBlank()) route else "$route ($args)"
+
+            val idx = stack.indexOfFirst { it.first == entryId }
+            if (idx >= 0) {
+                // POP do tej instancji
+                while (stack.size > idx + 1) stack.removeAt(stack.lastIndex)
+                stack[idx] = entryId to label
+            } else {
+                // PUSH
+                stack.add(entryId to label)
+            }
+
+            Log.d(tag, "BackStack: ${stack.joinToString(" -> ") { it.second }}")
+        }
+    }
+}
+
+@SuppressLint("RestrictedApi")
+@Composable
+fun LogVisibleEntries(navController: NavHostController) {
+    LaunchedEffect(navController) {
+        navController.visibleEntries.collect { entries ->
+            val s = entries.joinToString(" -> ") {
+                it.destination.route ?: it.destination.displayName
+            }
+            Log.d("NAV", "VisibleEntries: $s")
+        }
+    }
 }
 
 

@@ -10,9 +10,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.pharmacystore.common.MainScaffold
-//import com.example.pharmacystore.ui.drug.DrugViewModel
 import com.example.pharmacystore.common.AppGradientRoot
+import com.example.pharmacystore.common.MainScaffold
 import com.example.pharmacystore.common.toNavGraphOrNull
 import com.example.pharmacystore.ui.theme.PharmacyStoreTheme
 import dagger.hilt.android.AndroidEntryPoint

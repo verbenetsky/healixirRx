@@ -60,6 +60,7 @@ import com.example.pharmacystore.ui.theme.sagePerSecond
 
 @Composable
 fun ProfileScreen(
+    navigateToProvidePhoneNumberScreen: () -> Unit,
     profileScreenViewModel: ProfileScreenViewModel,
     onLogoutClick: () -> Unit,
     navigateToSettingsCue2FA: () -> Unit,
@@ -104,16 +105,18 @@ fun ProfileScreen(
                     name = u.nameSurname,
                     email = u.email,
                     phone = u.phoneNumber,
-                    onEditProfile = {},
+                    //onEditProfile = {},
                 )
 
                 // Dane kontaktowe
                 ProfileInfoCard(
                     title = "Contact details",
                     rows = profileScreenViewModel.returnRows(),
-                    missing = profileScreenViewModel.returnMissing(
+                    missing =
+                        profileScreenViewModel.returnMissing(
                         onMissingEmailClick = {
                             // w settings nie jest zaznaczono two factor auth
+                            println("missing email")
                             if (!userData!!.settings.twoFactorEnabled) {
                                 navigateToSettingsCue2FA()
                             } else { // two factor auth == true
@@ -122,10 +125,12 @@ fun ProfileScreen(
                             }
                         },
                         onMissingPhoneNumClick = {
+                            println("missing phone number")
                             if (!userData!!.settings.twoFactorEnabled) {
                                 navigateToSettingsCue2FA()
                             } else { // two factor auth == true
-                                showAlertDialogProvideEmailOrPhone = true
+                                // showAlertDialogProvideEmailOrPhone = true
+                                navigateToProvidePhoneNumberScreen()
                                 phone = true
                             }
                         }
@@ -214,7 +219,7 @@ private fun ProfileHeader(
     name: String,
     email: String?,
     phone: String?,
-    onEditProfile: () -> Unit,
+    //onEditProfile: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -262,12 +267,13 @@ private fun ProfileHeader(
 
             Spacer(Modifier.height(12.dp))
 
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                ShortcutPill(text = "Edit profile", onClick = onEditProfile)
-            }
+            // todo
+//            Row(
+//                Modifier.fillMaxWidth(),
+//                horizontalArrangement = Arrangement.spacedBy(10.dp)
+//            ) {
+//                ShortcutPill(text = "Edit profile", onClick = onEditProfile)
+//            }
         }
     }
 }
@@ -318,6 +324,7 @@ private fun ProfileInfoCard(
             }
 
             if (missing != null) {
+                println("missing != null")
                 Row {
                     val (icon, label) = when (missing) {
                         is MissingField.Email -> Icons.Outlined.Email to "E-mail"
@@ -325,7 +332,7 @@ private fun ProfileInfoCard(
                     }
                     InfoRow(icon, label, "None")
                     Spacer(Modifier.weight(1f))
-                    ShortcutPill(missing.ctaLabel, onClick = missing.onProvide)
+                    ShortcutPill(missing.ctaLabel, onClick = { missing.onProvide() })
                 }
             }
 

@@ -65,17 +65,23 @@ class ProfileScreenViewModel @Inject constructor(
                 InfoRowData(Icons.Outlined.Phone, "Phone number", it)
             }
         )
+        println(rows)
         return rows
     }
 
     fun returnMissing(
         onMissingEmailClick: () -> Unit,
         onMissingPhoneNumClick: () -> Unit
-    ): MissingField {
+    ): MissingField? {
+
+        println(_userData.value?.email)
+
         return if (_userData.value?.email == null)
             MissingField.Email(onMissingEmailClick)
-        else
+        else if (_userData.value?.phoneNumber == null)
             MissingField.Phone(onMissingPhoneNumClick)
+        else
+            null
     }
 
     sealed interface ProfileScreenState {
