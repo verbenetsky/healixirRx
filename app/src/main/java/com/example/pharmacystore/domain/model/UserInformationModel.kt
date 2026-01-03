@@ -25,6 +25,7 @@ data class UserInformationModel(
 
 data class UserSettings(
     val twoFactorEnabled: Boolean = false,
+    val enableLinking: Boolean = false
 )
 
 // Warto wspomnieć o konwencji JavaBeans: mapper Firestore jej używa.

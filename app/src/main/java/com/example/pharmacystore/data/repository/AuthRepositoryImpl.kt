@@ -4,6 +4,7 @@ import android.app.Activity
 import com.example.pharmacystore.domain.model.PhoneAuthResult
 import com.example.pharmacystore.repo.AuthRepository
 import com.google.firebase.FirebaseException
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
@@ -40,8 +41,7 @@ class AuthRepositoryImpl @Inject constructor(
             }
 
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                // Opcjonalnie: auto-logowanie bez wpisywania kodu (jeśli chcesz to obsłużyć)
-
+                // Opcjonalnie: auto-logowanie bez wpisywania kodu
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
@@ -52,13 +52,12 @@ class AuthRepositoryImpl @Inject constructor(
 
             override fun onCodeAutoRetrievalTimeOut(verificationId: String) {
                 // To tylko informacja o końcu auto-retrieval — ręczne wpisanie kodu nadal działa.
-
             }
         }
 
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phoneNumber)
-            .setActivity(activity)               // ważne: Activity, nie sam Context
+            .setActivity(activity)
             .setTimeout(
                 60L,
                 TimeUnit.SECONDS
@@ -69,9 +68,7 @@ class AuthRepositoryImpl @Inject constructor(
         PhoneAuthProvider.verifyPhoneNumber(options)
 
         // Jeśli korutyna zostanie anulowana (np. użytkownik opuści ekran), nic nie robimy.
-        cont.invokeOnCancellation {
-            // Tu ewentualnie można posprzątać zasoby, ale PhoneAuthProvider nie udostępnia cancel.
-        }
+        // cont.invokeOnCancellation {
     }
 
     // Weryfikuje podany kod i loguje; zwraca info czy to nowy użytkownik
@@ -107,11 +104,16 @@ class AuthRepositoryImpl @Inject constructor(
             }
         }
 
-    override suspend fun linkEmail() {
-//        val phoneCred = PhoneAuthProvider.getCredential(verificationId, smsCode)
-//
-//        val user = FirebaseAuth.getInstance().currentUser ?: return
-//        user.linkWithCredential(phoneCred)
+    override suspend fun linkEmail(email: String, password: String)  = runCatching {
+        require(email.isNotBlank()) { "verificationId is blank" }
+        require(password.isNotBlank()) { "code is blank" }
+
+        val user = auth.currentUser ?: error("User not logged in")
+        val credential = EmailAuthProvider.getCredential(email,password)
+
+        user.linkWithCredential(credential)
+        println("email linked")
+        Unit
     }
 
     override suspend fun linkPhoneToCurrentUser(
@@ -126,8 +128,5 @@ class AuthRepositoryImpl @Inject constructor(
         val credential = PhoneAuthProvider.getCredential(smsCode, verificationId)
 
         user.linkWithCredential(credential).await()
-        Unit
     }
-
-
 }

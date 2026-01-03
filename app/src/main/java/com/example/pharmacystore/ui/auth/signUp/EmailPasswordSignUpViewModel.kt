@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pharmacystore.domain.model.Validation
 import com.example.pharmacystore.repo.AuthRepository
-import com.example.pharmacystore.ui.auth.signIn.EmailPasswordSignInViewModel.AuthEvent
-import com.google.firebase.auth.FirebaseUser
+import com.example.pharmacystore.repo.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -18,7 +18,10 @@ import javax.inject.Inject
 
 
 @HiltViewModel
-class EmailPasswordSignUpViewModel @Inject constructor(private val repo: AuthRepository) :
+class EmailPasswordSignUpViewModel @Inject constructor(
+    private val repo: AuthRepository,
+    val userRepo: UserRepository
+) :
     ViewModel() {
 
     private val _email = MutableStateFlow("")
@@ -30,8 +33,30 @@ class EmailPasswordSignUpViewModel @Inject constructor(private val repo: AuthRep
     private val _authUiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val authUiState = _authUiState.asStateFlow()
 
-    private val _events = MutableSharedFlow<AuthEvent>(replay = 0, extraBufferCapacity = 1)
+    private val _events = MutableSharedFlow<AuthEvents>(replay = 0, extraBufferCapacity = 1)
     val events = _events.asSharedFlow()
+
+    fun linkEmail(email: String, password: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repo.linkEmail(email, password)
+                .onSuccess {
+                    println("success linkPhoneToCurrentUser")
+                    _events.tryEmit(
+                        AuthEvents.EmailSuccessfullyLinked(
+                            "Your email has been successfully linked to your account. " +
+                                    "This means your existing account (created with phone number) now also has email+password sign-in enabled. " +
+                                    "From now on, you can log in either with your email and password or by using your phone number." +
+                                    "Your account ID and data remain the same — we only added an " +
+                                    "additional sign-in method for convenience and security."
+                        )
+                    )
+                    userRepo.addEmailToFirestore(email)
+                }
+                .onFailure { err ->
+                    println(err)
+                }
+        }
+    }
 
     fun updateEmail(newEmail: String) {
         _email.value = newEmail
@@ -48,7 +73,7 @@ class EmailPasswordSignUpViewModel @Inject constructor(private val repo: AuthRep
             val result = repo.signUpUser(email, password)
             result
                 .onSuccess {
-                    _events.tryEmit(AuthEvent.NavigateToMainScreen)
+                    _events.tryEmit(AuthEvents.NavigateToMainScreen)
                 }.onFailure { err ->
                     println(err.localizedMessage ?: "Unknown error")
                     _authUiState.value = AuthUiState.Error(err.localizedMessage ?: "Unknown error")
@@ -95,5 +120,6 @@ class EmailPasswordSignUpViewModel @Inject constructor(private val repo: AuthRep
 
     sealed interface AuthEvents {
         data object NavigateToMainScreen: AuthEvents
+        data class EmailSuccessfullyLinked(val msg: String): AuthEvents
     }
 }

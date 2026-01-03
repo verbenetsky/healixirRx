@@ -13,6 +13,6 @@ interface AuthRepository {
 
     suspend fun signInUser(email: String, password: String): Result<Unit>
 
-    suspend fun linkEmail() // dodaje do numer telefonu do istniejacego email + haslo
+    suspend fun linkEmail(email: String, password: String): Result<Unit> // dodaje do numer telefonu do istniejacego email + haslo
     suspend fun linkPhoneToCurrentUser(smsCode: String, verificationId: String): Result<Unit> // dodaje do istniejacego email + haslo numer telefonu
 }

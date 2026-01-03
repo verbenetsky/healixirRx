@@ -122,7 +122,7 @@ class AuthSmsViewModel @Inject constructor(
                                     "additional sign-in method for convenience and security."
                         )
                     )
-                    userRepo.addPhoneNumberToFirestore(_phoneNumber.value)
+                    userRepo.addPhoneNumberToFirestore(_phoneNumber.value, _countryPrefix.value.prefix.toString())
                 }
                 .onFailure { err ->
                     println(err)

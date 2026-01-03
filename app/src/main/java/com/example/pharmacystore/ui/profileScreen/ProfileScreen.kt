@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,16 +25,12 @@ import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AlertDialogDefaults
-import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,11 +50,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.pharmacystore.common.combineAddress
 import com.example.pharmacystore.common.convertWojNumberToWojString
-import com.example.pharmacystore.common.validateEmail
 import com.example.pharmacystore.ui.theme.sagePerSecond
 
 @Composable
 fun ProfileScreen(
+    navigateToSignUpScreen: (screen: String) -> Unit,
     navigateToProvidePhoneNumberScreen: () -> Unit,
     profileScreenViewModel: ProfileScreenViewModel,
     onLogoutClick: () -> Unit,
@@ -78,9 +73,10 @@ fun ProfileScreen(
         println(state)
     }
 
-    var showAlertDialogProvideEmailOrPhone by remember { mutableStateOf(false) }
-    var email by remember { mutableStateOf(false) }
-    var phone by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        profileScreenViewModel.refreshUser()
+    }
+
 
     when (userData) {
         null -> {
@@ -114,27 +110,25 @@ fun ProfileScreen(
                     rows = profileScreenViewModel.returnRows(),
                     missing =
                         profileScreenViewModel.returnMissing(
-                        onMissingEmailClick = {
-                            // w settings nie jest zaznaczono two factor auth
-                            println("missing email")
-                            if (!userData!!.settings.twoFactorEnabled) {
-                                navigateToSettingsCue2FA()
-                            } else { // two factor auth == true
-                                showAlertDialogProvideEmailOrPhone = true
-                                email = true
+                            onMissingEmailClick = {
+                                // w settings nie jest zaznaczono enableLinking
+                                println("missing email")
+                                if (!userData!!.settings.enableLinking) {
+                                    navigateToSettingsCue2FA()
+                                } else { // enableLinking == true
+                                    navigateToSignUpScreen("PROFILE")
+                                }
+                            },
+                            onMissingPhoneNumClick = {
+                                println("missing phone number")
+                                if (!userData!!.settings.enableLinking) {
+                                    navigateToSettingsCue2FA()
+                                } else { // enableLinking == true
+                                    // showAlertDialogProvideEmailOrPhone = true
+                                    navigateToProvidePhoneNumberScreen()
+                                }
                             }
-                        },
-                        onMissingPhoneNumClick = {
-                            println("missing phone number")
-                            if (!userData!!.settings.twoFactorEnabled) {
-                                navigateToSettingsCue2FA()
-                            } else { // two factor auth == true
-                                // showAlertDialogProvideEmailOrPhone = true
-                                navigateToProvidePhoneNumberScreen()
-                                phone = true
-                            }
-                        }
-                    )
+                        )
                 )
 
                 // Adres + akcje
@@ -187,16 +181,16 @@ fun ProfileScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
-            if (showAlertDialogProvideEmailOrPhone) {
-                ProvideEmailOrPhoneNumber(
-                    onDismissRequest = {
-                        showAlertDialogProvideEmailOrPhone = false
-                    },
-                    email = email,
-                    phone = phone,
-                    onConfirm = { }
-                )
-            }
+//            if (showAlertDialogProvideEmailOrPhone) {
+//                ProvideEmailOrPhoneNumber(
+//                    onDismissRequest = {
+//                        showAlertDialogProvideEmailOrPhone = false
+//                    },
+//                    email = email,
+//                    phone = phone,
+//                    onConfirm = { }
+//                )
+//            }
         }
     }
 
@@ -267,7 +261,6 @@ private fun ProfileHeader(
 
             Spacer(Modifier.height(12.dp))
 
-            // todo
 //            Row(
 //                Modifier.fillMaxWidth(),
 //                horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -405,98 +398,98 @@ fun ElevatedActionChip(
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ProvideEmailOrPhoneNumber(
-    onDismissRequest: () -> Unit,
-    email: Boolean,
-    phone: Boolean,
-    onConfirm: (String) -> Unit = {}
-) {
-    var value by remember { mutableStateOf("") }
-    var isOpenPhonePrefixPicker by remember { mutableStateOf(false) }
-
-    BasicAlertDialog(
-        onDismissRequest = onDismissRequest
-    ) {
-        Surface(
-            modifier = Modifier
-                .padding(12.dp)
-                .widthIn(min = 280.dp, max = 360.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = AlertDialogDefaults.TonalElevation,
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Title
-                Text(
-                    text = "Contact details",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                if (email) {
-                    OutlinedTextField(
-                        value = value,
-                        onValueChange = { value = it },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Email") }
-                    )
-                } else { // todo
-//                    OutlinedTextField(
-//                        value = "phoneNumber",
-//                        onValueChange = { },
-//                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-//                        modifier = Modifier.fillMaxWidth(),
-//                        leadingIcon = {
-//                            Text(
-//                                "",
-//                                color = MaterialTheme.colorScheme.onPrimary,
-//                                modifier = Modifier
-//                                    .padding(4.dp)
-//                                    .clickable { isOpenPhonePrefixPicker = true }
-//                            )
-//                        },
-//                        label = { Text("Enter your phone #", color = MaterialTheme.colorScheme.onPrimary) }
-//                    )
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun ProvideEmailOrPhoneNumber(
+//    onDismissRequest: () -> Unit,
+//    email: Boolean,
+//    phone: Boolean,
+//    onConfirm: (String) -> Unit = {}
+//) {
+//    var value by remember { mutableStateOf("") }
+//    var isOpenPhonePrefixPicker by remember { mutableStateOf(false) }
 //
-//                    if (isOpenPhonePrefixPicker) {
-//                        LazyColumn(Modifier.heightIn(max = 250.dp)) {
-//                            items(PhonePrefixesData.listOfPrefixes) { countryRec ->
-//                                TextButton(onClick = {
-//                                    isOpenPhonePrefixPicker = false
-//                                }) {
-//                                    Text("${isoToEmoji(countryRec.isoAlpha2)} ${countryRec.name}  +${countryRec.prefix}")
-//                                }
-//                            }
-//                        }
+//    BasicAlertDialog(
+//        onDismissRequest = onDismissRequest
+//    ) {
+//        Surface(
+//            modifier = Modifier
+//                .padding(12.dp)
+//                .widthIn(min = 280.dp, max = 360.dp),
+//            shape = MaterialTheme.shapes.extraLarge,
+//            tonalElevation = AlertDialogDefaults.TonalElevation,
+//        ) {
+//            Column(
+//                modifier = Modifier.padding(12.dp),
+//                verticalArrangement = Arrangement.spacedBy(8.dp)
+//            ) {
+//                // Title
+//                Text(
+//                    text = "Contact details",
+//                    style = MaterialTheme.typography.titleLarge
+//                )
+//                if (email) {
+//                    OutlinedTextField(
+//                        value = value,
+//                        onValueChange = { value = it },
+//                        singleLine = true,
+//                        modifier = Modifier.fillMaxWidth(),
+//                        placeholder = { Text("Email") }
+//                    )
+//                } else { // todo
+////                    OutlinedTextField(
+////                        value = "phoneNumber",
+////                        onValueChange = { },
+////                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+////                        modifier = Modifier.fillMaxWidth(),
+////                        leadingIcon = {
+////                            Text(
+////                                "",
+////                                color = MaterialTheme.colorScheme.onPrimary,
+////                                modifier = Modifier
+////                                    .padding(4.dp)
+////                                    .clickable { isOpenPhonePrefixPicker = true }
+////                            )
+////                        },
+////                        label = { Text("Enter your phone #", color = MaterialTheme.colorScheme.onPrimary) }
+////                    )
+////
+////                    if (isOpenPhonePrefixPicker) {
+////                        LazyColumn(Modifier.heightIn(max = 250.dp)) {
+////                            items(PhonePrefixesData.listOfPrefixes) { countryRec ->
+////                                TextButton(onClick = {
+////                                    isOpenPhonePrefixPicker = false
+////                                }) {
+////                                    Text("${isoToEmoji(countryRec.isoAlpha2)} ${countryRec.name}  +${countryRec.prefix}")
+////                                }
+////                            }
+////                        }
+////                    }
+//                }
+//
+//                // Action buttons
+//                Row(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    horizontalArrangement = Arrangement.End
+//                ) {
+//                    TextButton(onClick = onDismissRequest) {
+//                        Text("Cancel")
 //                    }
-                }
-
-                // Action buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismissRequest) {
-                        Text("Cancel")
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    TextButton(
-                        onClick = {
-                            onConfirm(value)
-                            onDismissRequest()
-                        },
-                        enabled = validateEmail(value)
-                    ) {
-                        Text("OK")
-                    }
-                }
-            }
-        }
-    }
-}
+//                    Spacer(Modifier.width(8.dp))
+//                    TextButton(
+//                        onClick = {
+//                            onConfirm(value)
+//                            onDismissRequest()
+//                        },
+//                        enabled = validateEmail(value)
+//                    ) {
+//                        Text("OK")
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
 
 @Composable
 fun ConfirmLogoutDialog(

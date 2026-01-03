@@ -26,11 +26,19 @@ class UserRepositoryImpl @Inject constructor(
     private val uid: String
         get() = auth.currentUser?.uid ?: throw IllegalStateException("Not logged In")
 
-    override suspend fun addPhoneNumberToFirestore(phoneNumber: String) {
+    override suspend fun addPhoneNumberToFirestore(phoneNumber: String, prefix: String) {
         firestore
             .collection("users")
             .document(uid)
-            .update("phoneNumber", phoneNumber)
+            .update("phoneNumber", "+$prefix $phoneNumber")
+            .await()
+    }
+
+    override suspend fun addEmailToFirestore(email: String) {
+        firestore
+            .collection("users")
+            .document(uid)
+            .update("email", email)
             .await()
     }
 

@@ -56,9 +56,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.pharmacystore.common.DoubleBackReact
 import com.example.pharmacystore.common.returnGradientBackGround
+import com.example.pharmacystore.ui.auth.InfoDialog
 import com.example.pharmacystore.ui.auth.signIn.AuthHeaderCard
 import com.example.pharmacystore.ui.auth.signIn.AuthSectionCard
 import com.example.pharmacystore.ui.auth.signIn.EmailPasswordSignInViewModel
@@ -68,11 +68,16 @@ import com.example.pharmacystore.ui.theme.sagePerSecond
 
 @Composable
 fun EmailPasswordSignUp(
+    screen: String? = null,
     navigateToAccountSetUpScreen: (String) -> Unit,
     navigateToSingUpMethodScreen: () -> Unit,
+    navigateToProfileScreen: () -> Unit,
     emailPasswordSignUpViewModel: EmailPasswordSignUpViewModel
 ) {
     val context = LocalContext.current
+
+    var dialogText by remember { mutableStateOf("") }
+    var showDialog by remember { mutableStateOf(false) }
 
     var password by remember { mutableStateOf("") }
     var password2 by remember { mutableStateOf("") }
@@ -84,8 +89,26 @@ fun EmailPasswordSignUp(
     val isLoading = authUiState is EmailPasswordSignUpViewModel.AuthUiState.Loading
 
     DoubleBackReact(
-        exit = { navigateToSingUpMethodScreen() },
-        message = "Press back again to return to starting screen"
+        exit = {
+            when (screen) {
+                null -> {
+                    navigateToSingUpMethodScreen()
+                }
+
+                else -> {
+                    navigateToProfileScreen()
+                }
+            }
+        },
+        message = when (screen) {
+            null -> {
+                "Press back again to return to starting screen"
+            }
+
+            else -> {
+                "Press back again to return to home screen"
+            }
+        }
     )
 
     LaunchedEffect(emailPasswordSignUpViewModel.events) {
@@ -100,6 +123,15 @@ fun EmailPasswordSignUp(
                 EmailPasswordSignInViewModel.AuthEvent.NavigateToMainScreen -> {
                     navigateToAccountSetUpScreen(email)
                     Toast.makeText(context, "Successfully sign up", Toast.LENGTH_SHORT).show()
+                }
+
+                is EmailPasswordSignUpViewModel.AuthEvents.EmailSuccessfullyLinked -> {
+                    dialogText = data.msg
+                    showDialog = true
+                }
+
+                EmailPasswordSignUpViewModel.AuthEvents.NavigateToMainScreen -> {
+
                 }
             }
         }
@@ -283,7 +315,7 @@ fun EmailPasswordSignUp(
                         is EmailPasswordSignUpViewModel.AuthUiState.Error -> {
                             Spacer(Modifier.height(6.dp))
                             Surface(
-                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.18f),
+                                color = Color.White.copy(alpha = 0.18f),
                                 shape = RoundedCornerShape(14.dp),
                                 border = BorderStroke(0.4.dp, ink.copy(alpha = 0.10f)),
                                 modifier = Modifier.fillMaxWidth()
@@ -317,9 +349,16 @@ fun EmailPasswordSignUp(
 
                     Button(
                         onClick = {
-                            emailPasswordSignUpViewModel.signUp(email, password)
-                            password = ""
-                            password2 = ""
+                            if (screen != null) {
+                                println("screen is not null")
+                                emailPasswordSignUpViewModel.linkEmail(email, password)
+                                password = ""
+                                password2 = ""
+                            } else {
+                                emailPasswordSignUpViewModel.signUp(email, password)
+                                password = ""
+                                password2 = ""
+                            }
                         },
 
                         enabled = validation.email &&
@@ -352,4 +391,15 @@ fun EmailPasswordSignUp(
             )
         }
     }
+
+    if (showDialog) {
+        InfoDialog(
+            text = dialogText,
+            onDismiss = {
+                showDialog = false
+                navigateToProfileScreen()
+            }
+        )
+    }
 }
+

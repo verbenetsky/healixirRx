@@ -59,8 +59,8 @@ import com.example.pharmacystore.ui.summary.SummaryCheckoutScreen
 @Composable
 fun AppNavHost(nav: NavHostController, modifier: Modifier) {
 
-    LogNavHostBackStack(nav)
-    LogVisibleEntries(nav)
+//    LogNavHostBackStack(nav)
+//    LogVisibleEntries(nav)
 
     NavHost(
         navController = nav,
@@ -117,13 +117,23 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
             }
 
             // ekran z text fieldami gdzie wpisujemy email i haslo
-            composable(Screen.EmailPasswordSignUpScreen.route) {
+            composable(
+                Screen.EmailPasswordSignUpScreen.route,
+                arguments = listOf(
+                    navArgument("originScreen") {
+                        type = NavType.StringType
+                    })
+            ) { backStack ->
+                val screen = backStack.arguments?.getString("originScreen")
                 val viewModel: EmailPasswordSignUpViewModel = hiltViewModel()
+
                 EmailPasswordSignUp(
+                    screen = screen,
                     emailPasswordSignUpViewModel = viewModel,
                     navigateToAccountSetUpScreen = { email ->
                         nav.navigate("profileSetUp?email=${Uri.encode(email)}")
                     },
+                    navigateToProfileScreen = { nav.popBackStack() },
                     navigateToSingUpMethodScreen = {
                         nav.navigate(Screen.SignInOptions.route) {
                             popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
@@ -267,7 +277,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
 
                 ProfileScreen(
                     profileScreenViewModel = viewModel,
-                    navigateToSettings = { nav.navigate(Screen.Settings.route) },
+                    navigateToSettings = { nav.navigate("settings") },
                     navigateToOrdersScreen = { nav.navigate(Screen.OrdersScreen.route) },
                     navigateToProvidePhoneNumberScreen = { nav.navigate("authSms/${OriginScreen.PROFILE}") },
                     onLogoutClick = {
@@ -281,6 +291,9 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                                 }
                             }
                         )
+                    },
+                    navigateToSignUpScreen = { screen ->
+                        nav.navigate(Screen.EmailPasswordSignUpScreen.route(screen))
                     },
                     navigateToSettingsCue2FA = {
                         nav.navigate("settings?cue=2FA") {
@@ -312,7 +325,9 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
 
                 Settings(
                     twoFAState = draft.twoFactorEnabled,
+                    enableLinkingState = draft.enableLinking,
                     on2FAChange = { draft = draft.copy(twoFactorEnabled = it) },
+                    onEnableLinkingChange = { draft = draft.copy(enableLinking = it) },
                     isDirty = isDirty,
                     settingsViewModel = settingsViewModel,
                     userSettings = draft,
@@ -679,7 +694,11 @@ sealed class Screen(val route: String) {
     data object SignInOptions : Screen("loginOpt")
     data object RegisterOptions : Screen("registerOpt") // 1
     data object AuthSmsScreen : Screen("authSms/{screen}") // 2
-    data object EmailPasswordSignUpScreen : Screen("email_sign_up") // 2
+    data object EmailPasswordSignUpScreen : Screen("email_sign_up?screen={originScreen}") {
+        fun route(originScreen: String? = null): String =
+            if (originScreen == null) "email_sign_up" else "email_sign_up?screen=$originScreen"
+    } // 2
+
     data object EmailPasswordSignInScreen : Screen("email_sign_in")
     data object AuthGate : Screen("authGate")
 
