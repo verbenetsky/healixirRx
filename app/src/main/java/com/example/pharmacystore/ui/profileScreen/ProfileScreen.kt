@@ -1,5 +1,6 @@
 package com.example.pharmacystore.ui.profileScreen
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -20,10 +21,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Error
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,15 +49,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.pharmacystore.common.combineAddress
 import com.example.pharmacystore.common.convertWojNumberToWojString
+import com.example.pharmacystore.ui.auth.signIn.EmailPasswordSignInViewModel
+import com.example.pharmacystore.ui.auth.signIn.EmailVerificationViewModel
 import com.example.pharmacystore.ui.theme.sagePerSecond
+import kotlinx.coroutines.flow.SharedFlow
 
 @Composable
 fun ProfileScreen(
+    emailVerifiedState: EmailVerificationViewModel.EmailVerifiedState,
+    coolDownTime: Long,
+    loadCoolDown: () -> Unit,
+    authEvents: SharedFlow<EmailPasswordSignInViewModel.AuthEvent>,
+    onVerifyClick: (String) -> Unit,
     navigateToSignUpScreen: (screen: String) -> Unit,
     navigateToProvidePhoneNumberScreen: () -> Unit,
     profileScreenViewModel: ProfileScreenViewModel,
@@ -61,8 +75,26 @@ fun ProfileScreen(
     navigateToSettingsCue2FA: () -> Unit,
     openMap: () -> Unit,
     navigateToSettings: () -> Unit,
-    navigateToOrdersScreen: () -> Unit
+    navigateToOrdersScreen: () -> Unit,
+    checkIfEmailIsVerified: () -> Unit
 ) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        authEvents.collect { value ->
+            when (value) {
+                is EmailPasswordSignInViewModel.AuthEvent.Error -> {
+                    Toast.makeText(context, value.msg, Toast.LENGTH_SHORT).show()
+                }
+
+                else -> Unit
+            }
+        }
+    }
+
+    // za kazdym razem jak wchodzimy na strone ladujemy cooldown, jesli taki jest
+    LaunchedEffect(Unit) {
+        loadCoolDown()
+    }
 
     var tryLogOut by remember { mutableStateOf(false) }
 
@@ -75,20 +107,21 @@ fun ProfileScreen(
 
     LaunchedEffect(Unit) {
         profileScreenViewModel.refreshUser()
+        checkIfEmailIsVerified()
     }
 
 
     when (userData) {
         null -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            Box(
+                Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) { CircularProgressIndicator() }
             println("user data is null")
         }
 
         else -> {
             val u = userData!!
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -106,7 +139,9 @@ fun ProfileScreen(
 
                 // Dane kontaktowe
                 ProfileInfoCard(
+                    coolDownTime = coolDownTime,
                     title = "Contact details",
+                    onVerifyClick = { email -> onVerifyClick(email) },
                     rows = profileScreenViewModel.returnRows(),
                     missing =
                         profileScreenViewModel.returnMissing(
@@ -128,11 +163,13 @@ fun ProfileScreen(
                                     navigateToProvidePhoneNumberScreen()
                                 }
                             }
-                        )
+                        ),
+                    emailVerifiedState = emailVerifiedState,
                 )
 
                 // Adres + akcje
                 ProfileInfoCard(
+                    emailVerifiedState = emailVerifiedState,
                     title = "",
                     trailingActions = {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -180,17 +217,6 @@ fun ProfileScreen(
 
                 Spacer(Modifier.height(12.dp))
             }
-
-//            if (showAlertDialogProvideEmailOrPhone) {
-//                ProvideEmailOrPhoneNumber(
-//                    onDismissRequest = {
-//                        showAlertDialogProvideEmailOrPhone = false
-//                    },
-//                    email = email,
-//                    phone = phone,
-//                    onConfirm = { }
-//                )
-//            }
         }
     }
 
@@ -203,7 +229,6 @@ fun ProfileScreen(
             onDismiss = { tryLogOut = false }
         )
     }
-
 }
 
 /* ─────────────────────────  KLOCKI WEWNĘTRZNE  ───────────────────────── */
@@ -284,10 +309,13 @@ sealed class MissingField(val ctaLabel: String, val onProvide: () -> Unit) {
 
 @Composable
 private fun ProfileInfoCard(
+    coolDownTime: Long = 0,
+    emailVerifiedState: EmailVerificationViewModel.EmailVerifiedState? = null,
     title: String,
     rows: List<InfoRowData> = emptyList(), // email and phoneNum
     address: InfoRowData? = null,  // sam adress
     missing: MissingField? = null,
+    onVerifyClick: (String) -> Unit = {},
     trailingActions: @Composable (() -> Unit)? = null
 ) {
     Surface(
@@ -311,7 +339,27 @@ private fun ProfileInfoCard(
             Spacer(Modifier.height(4.dp))
 
             if (rows.isNotEmpty()) {
-                rows.forEach { InfoRow(it.icon, it.label, it.value) }
+                rows.forEach { row ->
+                    if (row.label == "E-mail") {
+                        InfoRow(row.icon, row.label, row.value, emailVerifiedState = emailVerifiedState)
+                        println(coolDownTime)
+                        if (emailVerifiedState == EmailVerificationViewModel.EmailVerifiedState.NotVerified) {
+                            OutlinedButton(
+                                enabled = coolDownTime < 1,
+                                onClick = { onVerifyClick(row.value) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = sagePerSecond)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Send, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(if (coolDownTime < 1) "Send email verification" else "Try Again in $coolDownTime")
+                            }
+                        }
+                    } else {
+                        InfoRow(row.icon, row.label, row.value)
+                    }
+                }
             } else if (address != null) {
                 InfoRow(address.icon, address.label, address.value)
             }
@@ -328,7 +376,6 @@ private fun ProfileInfoCard(
                     ShortcutPill(missing.ctaLabel, onClick = { missing.onProvide() })
                 }
             }
-
         }
     }
 }
@@ -337,26 +384,69 @@ private fun ProfileInfoCard(
 private fun InfoRow(
     icon: ImageVector,
     label: String,
-    value: String
+    value: String,
+    emailVerifiedState: EmailVerificationViewModel.EmailVerifiedState? = null,
 ) {
     Row(
-        Modifier
-            .padding(vertical = 6.dp),
+        Modifier.padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = sagePerSecond, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(10.dp))
-        Column {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        if (emailVerifiedState == EmailVerificationViewModel.EmailVerifiedState.Unknown) {
+            CircularProgressIndicator()
+        } else {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = sagePerSecond,
+                modifier = Modifier.size(22.dp)
             )
-            Text(
-                value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.width(16.dp))
+
+                    if (emailVerifiedState != null) {
+
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            when (emailVerifiedState) {
+                                EmailVerificationViewModel.EmailVerifiedState.Verified -> "E-mail is verified"
+                                EmailVerificationViewModel.EmailVerifiedState.NotVerified -> "E-mail is not verified"
+                                is EmailVerificationViewModel.EmailVerifiedState.Error -> "Error"
+                                EmailVerificationViewModel.EmailVerifiedState.Unknown -> {
+                                    "loading..."
+                                }
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            when (emailVerifiedState) {
+                                is EmailVerificationViewModel.EmailVerifiedState.Error -> Icons.Outlined.Error
+                                EmailVerificationViewModel.EmailVerifiedState.NotVerified -> Icons.Outlined.Error
+                                EmailVerificationViewModel.EmailVerifiedState.Unknown -> Icons.Outlined.Error
+                                EmailVerificationViewModel.EmailVerifiedState.Verified -> Icons.Outlined.Verified
+                            },
+                            contentDescription = null,
+                            tint = if (emailVerifiedState == EmailVerificationViewModel.EmailVerifiedState.Verified) Color.Green else Color.Red,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+                Text(
+                    value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }
@@ -397,106 +487,11 @@ fun ElevatedActionChip(
     }
 }
 
-
-//@OptIn(ExperimentalMaterial3Api::class)
-//@Composable
-//fun ProvideEmailOrPhoneNumber(
-//    onDismissRequest: () -> Unit,
-//    email: Boolean,
-//    phone: Boolean,
-//    onConfirm: (String) -> Unit = {}
-//) {
-//    var value by remember { mutableStateOf("") }
-//    var isOpenPhonePrefixPicker by remember { mutableStateOf(false) }
-//
-//    BasicAlertDialog(
-//        onDismissRequest = onDismissRequest
-//    ) {
-//        Surface(
-//            modifier = Modifier
-//                .padding(12.dp)
-//                .widthIn(min = 280.dp, max = 360.dp),
-//            shape = MaterialTheme.shapes.extraLarge,
-//            tonalElevation = AlertDialogDefaults.TonalElevation,
-//        ) {
-//            Column(
-//                modifier = Modifier.padding(12.dp),
-//                verticalArrangement = Arrangement.spacedBy(8.dp)
-//            ) {
-//                // Title
-//                Text(
-//                    text = "Contact details",
-//                    style = MaterialTheme.typography.titleLarge
-//                )
-//                if (email) {
-//                    OutlinedTextField(
-//                        value = value,
-//                        onValueChange = { value = it },
-//                        singleLine = true,
-//                        modifier = Modifier.fillMaxWidth(),
-//                        placeholder = { Text("Email") }
-//                    )
-//                } else { // todo
-////                    OutlinedTextField(
-////                        value = "phoneNumber",
-////                        onValueChange = { },
-////                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-////                        modifier = Modifier.fillMaxWidth(),
-////                        leadingIcon = {
-////                            Text(
-////                                "",
-////                                color = MaterialTheme.colorScheme.onPrimary,
-////                                modifier = Modifier
-////                                    .padding(4.dp)
-////                                    .clickable { isOpenPhonePrefixPicker = true }
-////                            )
-////                        },
-////                        label = { Text("Enter your phone #", color = MaterialTheme.colorScheme.onPrimary) }
-////                    )
-////
-////                    if (isOpenPhonePrefixPicker) {
-////                        LazyColumn(Modifier.heightIn(max = 250.dp)) {
-////                            items(PhonePrefixesData.listOfPrefixes) { countryRec ->
-////                                TextButton(onClick = {
-////                                    isOpenPhonePrefixPicker = false
-////                                }) {
-////                                    Text("${isoToEmoji(countryRec.isoAlpha2)} ${countryRec.name}  +${countryRec.prefix}")
-////                                }
-////                            }
-////                        }
-////                    }
-//                }
-//
-//                // Action buttons
-//                Row(
-//                    modifier = Modifier.fillMaxWidth(),
-//                    horizontalArrangement = Arrangement.End
-//                ) {
-//                    TextButton(onClick = onDismissRequest) {
-//                        Text("Cancel")
-//                    }
-//                    Spacer(Modifier.width(8.dp))
-//                    TextButton(
-//                        onClick = {
-//                            onConfirm(value)
-//                            onDismissRequest()
-//                        },
-//                        enabled = validateEmail(value)
-//                    ) {
-//                        Text("OK")
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
-
 @Composable
 fun ConfirmLogoutDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Sign out?") },
@@ -513,5 +508,3 @@ fun ConfirmLogoutDialog(
         }
     )
 }
-
-

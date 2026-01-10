@@ -73,7 +73,7 @@ class EmailPasswordSignUpViewModel @Inject constructor(
             val result = repo.signUpUser(email, password)
             result
                 .onSuccess {
-                    _events.tryEmit(AuthEvents.NavigateToMainScreen)
+                    _events.tryEmit(AuthEvents.NavigateToProfileSetUpScreen)
                 }.onFailure { err ->
                     println(err.localizedMessage ?: "Unknown error")
                     _authUiState.value = AuthUiState.Error(err.localizedMessage ?: "Unknown error")
@@ -120,6 +120,7 @@ class EmailPasswordSignUpViewModel @Inject constructor(
 
     sealed interface AuthEvents {
         data object NavigateToMainScreen: AuthEvents
+        data object NavigateToProfileSetUpScreen: AuthEvents
         data class EmailSuccessfullyLinked(val msg: String): AuthEvents
     }
 }

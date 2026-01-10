@@ -49,7 +49,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.ui.draw.clip
-import com.google.firebase.auth.ktx.auth
 import com.example.pharmacystore.ui.theme.sagePerSecond
 import android.app.Activity
 import android.widget.Toast
@@ -63,7 +62,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.example.pharmacystore.ui.theme.sagePerFirst
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 
 @Composable
 fun ProfileSetUpScreen(

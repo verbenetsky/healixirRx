@@ -78,6 +78,20 @@ class UserRepositoryImpl @Inject constructor(
             if (e is CancellationException) throw e
         }
 
+    override suspend fun getPhoneNumber(): Result<String> = runCatching {
+        val doc = firestore
+            .collection("users")
+            .document(uid)
+            .get()
+            .await()
+
+        check(doc.exists()) {"doc dont exist"}
+
+        doc.getString("phoneNumber")
+            ?: error("Phone number is missing")
+    }
+
+
     override suspend fun saveSettingsForUser(settings: UserSettings): Result<Unit> = runCatching {
         require(uid.isNotBlank()) { "uid is blank" }
 

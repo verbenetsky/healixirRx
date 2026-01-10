@@ -192,7 +192,6 @@ fun Throwable.toMessage(): String = when (this) {
         in 500..599 -> "Server error"
         else -> "Request failed (${code()})"
     }
-
     else -> localizedMessage?.takeIf { it.isNotBlank() } ?: "Something went wrong"
 }
 

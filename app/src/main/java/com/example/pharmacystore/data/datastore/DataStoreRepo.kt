@@ -24,5 +24,17 @@ class DataStoreRepo @Inject constructor(private val dataStore: DataStore<Prefere
             it[longPreferencesKey(phoneNumber)]
         }.first()
     }
+
+    suspend fun saveCooldownAndEmail(email: String, time: Long) { // key, value
+        dataStore.edit {
+            it[longPreferencesKey(email)] = time
+        }
+    }
+
+    suspend fun getCooldownAndEmail(email: String): Long? {
+        return dataStore.data.map {
+            it[longPreferencesKey(email)]
+        }.first()
+    }
 }
 

@@ -78,10 +78,13 @@ import com.example.pharmacystore.ui.theme.sagePerSecond
 fun SmsAuthScreen(
     navigateToSingUpMethodScreen: () -> Unit,
     navigateToHomeScreen: () -> Unit,
+    navigateToSettingsScreen: () -> Unit,
     navigateToAuthGate: () -> Unit,
     navigateToProfileSetUp: (String) -> Unit,
     authSmsViewModel: AuthSmsViewModel,
-    originScreen: OriginScreen
+    originScreen: OriginScreen,
+
+    completeEnrollment: (code: String) -> Unit,
 ) {
     val activity = LocalContext.current as? Activity
         ?: throw IllegalStateException("Composable nie jest osadzone w Activity")
@@ -148,131 +151,145 @@ fun SmsAuthScreen(
             .fillMaxSize()
             .background(returnGradientBackGround())
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            SmsHeaderCard(
-                title = "SMS authentication",
-                subtitle = "Confirm your phone number to continue."
-            )
-
-            when (val s = uiState) {
-                is AuthSmsViewModel.AuthSmsUiState.Idle,
-
-                is AuthSmsViewModel.AuthSmsUiState.Failed -> {
-                    EnterPhoneNumber(
-                        phoneNumber = phoneNumber,
-                        countryPrefix = countryPrefix,
-                        updatePhoneNumber = { authSmsViewModel.updatePhoneNumber(it) },
-                        updateCountryPrefix = { authSmsViewModel.updateCountryPrefixData(it) },
-                        remainingSec = cooldown,
-                        onLoadCooldown = { authSmsViewModel.loadCooldown(it) },
-                        sendConfirmationSms = { fullPhone ->
-                            authSmsViewModel.sendSms(fullPhone, activity)
-                            // cooldown ustawi VM po SuccessSend (onCodeSent)
-                        },
-                        error = if (s is AuthSmsViewModel.AuthSmsUiState.Failed) when (s.message) {
-                            AuthSmsViewModel.Err.BAD_PHONE -> "Invalid phone number."
-                            AuthSmsViewModel.Err.TOO_MANY -> "Too many attempts. Try again later."
-                            AuthSmsViewModel.Err.NO_NETWORK -> "No internet connection."
-                            AuthSmsViewModel.Err.GENERIC -> "Unexpected error."
-                        } else null,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                is AuthSmsViewModel.AuthSmsUiState.FailedLinking -> {
-                    EnterPhoneNumber(
-                        phoneNumber = phoneNumber,
-                        countryPrefix = countryPrefix,
-                        updatePhoneNumber = { authSmsViewModel.updatePhoneNumber(it) },
-                        updateCountryPrefix = { authSmsViewModel.updateCountryPrefixData(it) },
-                        remainingSec = cooldown,
-                        onLoadCooldown = { authSmsViewModel.loadCooldown(it) },
-                        sendConfirmationSms = { fullPhone ->
-                            authSmsViewModel.sendSms(fullPhone, activity)
-                            // cooldown ustawi VM po SuccessSend (onCodeSent)
-                        },
-                        error = when (val e = s.message) {
-                            LinkPhoneError.CodeExpired ->
-                                "The verification code has expired. Please request a new SMS code and try again."
-
-                            LinkPhoneError.InvalidCode ->
-                                "Incorrect verification code. Check the SMS and try again."
-
-                            LinkPhoneError.Network ->
-                                "No internet connection. Please check your network and try again."
-
-                            LinkPhoneError.NotLoggedIn ->
-                                "Your session has expired. Please sign in again and then link your phone number."
-
-                            LinkPhoneError.PhoneAlreadyInUse ->
-                                "This phone number is already linked to another account. Please use a different number or sign in with this phone number."
-
-                            LinkPhoneError.TooManyRequests ->
-                                "Too many attempts. Please wait a few minutes and try again."
-
-                            is LinkPhoneError.Unknown ->
-                                e.message?.takeIf { it.isNotBlank() }
-                                    ?: "Something went wrong while linking your phone number. Please try again."
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                is AuthSmsViewModel.AuthSmsUiState.Loading -> {
-                    SmsSectionCard(
-                        title = "Please wait",
-                        subtitle = "We are processing your request."
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 14.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = Color.DarkGray)
-                        }
-                    }
-                }
-
-                is AuthSmsViewModel.AuthSmsUiState.SuccessSend -> {
-                    val verificationId = s.verificationId
-                    EnterConfirmationCode(
-                        onCheckClick = { code ->
-                            println("code is $code")
-                            if (originScreen == OriginScreen.PROFILE) {
-                                authSmsViewModel.linkPhoneNumToEmail(code, verificationId)
-                            } else {
-                                authSmsViewModel.verifySms(verificationId, code)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                is AuthSmsViewModel.AuthSmsUiState.Success -> {
-                    SmsSectionCard(
-                        title = "Finishing",
-                        subtitle = "Finalizing authentication."
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 14.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                }
+        if (originScreen == OriginScreen.SETTINGS) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                EnterConfirmationCode(
+                    onCheckClick = { code -> completeEnrollment(code) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                SmsHeaderCard(
+                    title = "SMS authentication",
+                    subtitle = "Confirm your phone number to continue."
+                )
 
-            Spacer(Modifier.height(90.dp))
+                when (val s = uiState) {
+
+                    is AuthSmsViewModel.AuthSmsUiState.Idle,
+
+                    is AuthSmsViewModel.AuthSmsUiState.Failed -> {
+                        EnterPhoneNumber(
+                            phoneNumber = phoneNumber,
+                            countryPrefix = countryPrefix,
+                            updatePhoneNumber = { authSmsViewModel.updatePhoneNumber(it) },
+                            updateCountryPrefix = { authSmsViewModel.updateCountryPrefixData(it) },
+                            remainingSec = cooldown,
+                            onLoadCooldown = { authSmsViewModel.loadCooldown(it) },
+                            sendConfirmationSms = { fullPhone ->
+                                authSmsViewModel.sendSms(fullPhone, activity)
+                                // cooldown ustawi VM po SuccessSend (onCodeSent)
+                            },
+                            error = if (s is AuthSmsViewModel.AuthSmsUiState.Failed) when (s.message) {
+                                AuthSmsViewModel.Err.BAD_PHONE -> "Invalid phone number."
+                                AuthSmsViewModel.Err.TOO_MANY -> "Too many attempts. Try again later."
+                                AuthSmsViewModel.Err.NO_NETWORK -> "No internet connection."
+                                AuthSmsViewModel.Err.GENERIC -> "Unexpected error."
+                            } else null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    is AuthSmsViewModel.AuthSmsUiState.FailedLinking -> {
+                        EnterPhoneNumber(
+                            phoneNumber = phoneNumber,
+                            countryPrefix = countryPrefix,
+                            updatePhoneNumber = { authSmsViewModel.updatePhoneNumber(it) },
+                            updateCountryPrefix = { authSmsViewModel.updateCountryPrefixData(it) },
+                            remainingSec = cooldown,
+                            onLoadCooldown = { authSmsViewModel.loadCooldown(it) },
+                            sendConfirmationSms = { fullPhone ->
+                                authSmsViewModel.sendSms(fullPhone, activity)
+                                // cooldown ustawi VM po SuccessSend (onCodeSent)
+                            },
+                            error = when (val e = s.message) {
+                                LinkPhoneError.CodeExpired ->
+                                    "The verification code has expired. Please request a new SMS code and try again."
+
+                                LinkPhoneError.InvalidCode ->
+                                    "Incorrect verification code. Check the SMS and try again."
+
+                                LinkPhoneError.Network ->
+                                    "No internet connection. Please check your network and try again."
+
+                                LinkPhoneError.NotLoggedIn ->
+                                    "Your session has expired. Please sign in again and then link your phone number."
+
+                                LinkPhoneError.PhoneAlreadyInUse ->
+                                    "This phone number is already linked to another account. Please use a different number or sign in with this phone number."
+
+                                LinkPhoneError.TooManyRequests ->
+                                    "Too many attempts. Please wait a few minutes and try again."
+
+                                is LinkPhoneError.Unknown ->
+                                    e.message?.takeIf { it.isNotBlank() }
+                                        ?: "Something went wrong while linking your phone number. Please try again."
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    is AuthSmsViewModel.AuthSmsUiState.Loading -> {
+                        SmsSectionCard(
+                            title = "Please wait",
+                            subtitle = "We are processing your request."
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 14.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = Color.DarkGray)
+                            }
+                        }
+                    }
+
+                    is AuthSmsViewModel.AuthSmsUiState.SuccessSend -> {
+                        val verificationId = s.verificationId
+                        EnterConfirmationCode(
+                            onCheckClick = { code ->
+                                println("code is $code")
+                                if (originScreen == OriginScreen.PROFILE) {
+                                    authSmsViewModel.linkPhoneNumToEmail(code, verificationId)
+                                } else {
+                                    authSmsViewModel.verifySms(verificationId, code)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    is AuthSmsViewModel.AuthSmsUiState.Success -> {
+                        SmsSectionCard(
+                            title = "Finishing",
+                            subtitle = "Finalizing authentication."
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 14.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(90.dp))
+            }
         }
 
         SnackbarHost(
@@ -290,6 +307,10 @@ fun SmsAuthScreen(
                     navigateToHomeScreen()
                 }
 
+                OriginScreen.SETTINGS -> {
+                    navigateToSettingsScreen()
+                }
+
                 else -> {
                     when (uiState) {
                         is AuthSmsViewModel.AuthSmsUiState.Idle,
@@ -304,6 +325,10 @@ fun SmsAuthScreen(
             when (originScreen) {
                 OriginScreen.PROFILE -> {
                     "Press back again to return to home screen"
+                }
+
+                OriginScreen.SETTINGS -> {
+                    "Press back again to return to settings screen"
                 }
 
                 else -> {
@@ -756,14 +781,13 @@ fun InfoDialog(
                         Text("OK")
                     }
                 }
-
             }
         }
     }
 }
 
 
-enum class OriginScreen { SIGN_UP, SIGN_IN, PROFILE }
+enum class OriginScreen { SIGN_UP, SIGN_IN, PROFILE, SETTINGS }
 
 private fun snackFor(origin: OriginScreen, isNew: Boolean): String =
     when (origin) {

@@ -61,7 +61,6 @@ import com.example.pharmacystore.common.returnGradientBackGround
 import com.example.pharmacystore.ui.auth.InfoDialog
 import com.example.pharmacystore.ui.auth.signIn.AuthHeaderCard
 import com.example.pharmacystore.ui.auth.signIn.AuthSectionCard
-import com.example.pharmacystore.ui.auth.signIn.EmailPasswordSignInViewModel
 import com.example.pharmacystore.ui.auth.signIn.authInk
 import com.example.pharmacystore.ui.auth.signIn.authOutlinedTextFieldColors
 import com.example.pharmacystore.ui.theme.sagePerSecond
@@ -87,6 +86,10 @@ fun EmailPasswordSignUp(
     val authUiState by emailPasswordSignUpViewModel.authUiState.collectAsState()
 
     val isLoading = authUiState is EmailPasswordSignUpViewModel.AuthUiState.Loading
+
+    LaunchedEffect(Unit) {
+        println(screen)
+    }
 
     DoubleBackReact(
         exit = {
@@ -114,15 +117,14 @@ fun EmailPasswordSignUp(
     LaunchedEffect(emailPasswordSignUpViewModel.events) {
         emailPasswordSignUpViewModel.events.collect { data ->
             when (data) {
-                EmailPasswordSignInViewModel.AuthEvent.Error -> {
-                    password = ""
-                    password2 = ""
-                    emailPasswordSignUpViewModel.resetAuthState()
-                }
+//                EmailPasswordSignInViewModel.AuthEvent.Error -> {
+//                    password = ""
+//                    password2 = ""
+//                    emailPasswordSignUpViewModel.resetAuthState()
+//                }
 
-                EmailPasswordSignInViewModel.AuthEvent.NavigateToMainScreen -> {
-                    navigateToAccountSetUpScreen(email)
-                    Toast.makeText(context, "Successfully sign up", Toast.LENGTH_SHORT).show()
+                EmailPasswordSignUpViewModel.AuthEvents.NavigateToMainScreen -> {
+
                 }
 
                 is EmailPasswordSignUpViewModel.AuthEvents.EmailSuccessfullyLinked -> {
@@ -130,8 +132,9 @@ fun EmailPasswordSignUp(
                     showDialog = true
                 }
 
-                EmailPasswordSignUpViewModel.AuthEvents.NavigateToMainScreen -> {
-
+                EmailPasswordSignUpViewModel.AuthEvents.NavigateToProfileSetUpScreen -> {
+                    navigateToAccountSetUpScreen(email)
+                    Toast.makeText(context, "Successfully sign up", Toast.LENGTH_SHORT).show()
                 }
             }
         }

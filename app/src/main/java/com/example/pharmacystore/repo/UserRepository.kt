@@ -17,6 +17,8 @@ interface UserRepository {
     // pobieranie usera dla profile Screena
     suspend fun getUser(): Result<UserInformationModel>
 
+    suspend fun getPhoneNumber(): Result<String>
+
     suspend fun saveSettingsForUser(settings: UserSettings): Result<Unit>
 
     suspend fun getUserProfileSetUpCompleted(uid: String): Result<Boolean>

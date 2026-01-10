@@ -233,7 +233,6 @@ fun MainScaffold(navController: NavHostController) {
                 }
             }
         },
-
         contentWindowInsets = WindowInsets.safeDrawing
     ) { innerPadding ->
         AppNavHost(

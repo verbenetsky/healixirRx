@@ -14,12 +14,19 @@ import com.example.pharmacystore.common.AppGradientRoot
 import com.example.pharmacystore.common.MainScaffold
 import com.example.pharmacystore.common.toNavGraphOrNull
 import com.example.pharmacystore.ui.theme.PharmacyStoreTheme
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (BuildConfig.DEBUG) {
+            FirebaseAuth.getInstance().firebaseAuthSettings
+                .forceRecaptchaFlowForTesting(true)
+        }
+
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(
                 scrim = Color.Transparent.toArgb(),

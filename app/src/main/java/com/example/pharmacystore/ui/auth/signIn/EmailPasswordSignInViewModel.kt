@@ -2,20 +2,16 @@ package com.example.pharmacystore.ui.auth.signIn
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.pharmacystore.common.toMessage
 import com.example.pharmacystore.domain.model.Validation
 import com.example.pharmacystore.repo.AuthRepository
-import com.example.pharmacystore.ui.auth.signIn.AuthGateViewModel.AuthGateEvent
-import com.google.firebase.Firebase
 import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -29,11 +25,10 @@ class EmailPasswordSignInViewModel @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) :
     ViewModel() {
+    private val _isLoggedIn = MutableStateFlow<Boolean?>(null)
 
-    private val _isLoggedIn =
-        MutableStateFlow<Boolean?>(null) // jesli null to jesze sie nie zaladowalo
+    // jesli null to jesze sie nie zaladowalo
     val isLoggedIn = _isLoggedIn.asStateFlow()
-
 
     // rowniez trzeba sprawdzic czy user przypadkiem nie zapomniaj ukonczyc profileSetUp'u
     // bez tego to jesli nie sprawdzic to na ekranie profileSetUp wyjsc z apki i wejsc z powrotem to odrazu przeniesie do
@@ -67,12 +62,14 @@ class EmailPasswordSignInViewModel @Inject constructor(
         viewModelScope.launch {
             _authUiState.value = AuthUiState.Loading
             val result = repo.signInUser(email, password)
+            println("repo sign in")
             result.onSuccess {
+                println("success")
                 _events.tryEmit(AuthEvent.NavigateToMainScreen)
             }.onFailure { err ->
                 println(err.localizedMessage ?: "Unknown error")
                 _authUiState.value = AuthUiState.Error(err.toAuthError().userMessage())
-                _events.tryEmit(AuthEvent.Error)
+                _events.tryEmit(AuthEvent.Error())
             }
         }
     }
@@ -109,6 +106,7 @@ class EmailPasswordSignInViewModel @Inject constructor(
         }
     }
 
+
     sealed interface AuthUiState {
         data object Idle : AuthUiState
         data object Loading : AuthUiState
@@ -116,7 +114,7 @@ class EmailPasswordSignInViewModel @Inject constructor(
     }
 
     sealed interface AuthEvent {
-        data object Error : AuthEvent // blad logowania
+        data class Error(val msg: String = "") : AuthEvent
         data object NavigateToMainScreen : AuthEvent
     }
 
@@ -124,10 +122,14 @@ class EmailPasswordSignInViewModel @Inject constructor(
         data object InvalidCredentials : AuthError
         data object Network : AuthError
         data object Unknown : AuthError
+        data object TooManyRequest : AuthError
     }
 
 
     fun Throwable.toAuthError(): AuthError {
+
+        if (this is FirebaseTooManyRequestsException) return AuthError.TooManyRequest
+
         // sieć
         if (this is FirebaseNetworkException) return AuthError.Network
 
@@ -155,6 +157,6 @@ class EmailPasswordSignInViewModel @Inject constructor(
         AuthError.InvalidCredentials -> "Invalid email or password."
         AuthError.Network -> "Network error. Check your connection."
         AuthError.Unknown -> "Something went wrong. Please try again."
+        AuthError.TooManyRequest -> "Too many attempts. Try again later"
     }
-
 }

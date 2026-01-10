@@ -17,9 +17,7 @@ import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
 @HiltViewModel
-class ProfileScreenViewModel @Inject constructor(
-    private val userRepo: UserRepository,
-) :
+class ProfileScreenViewModel @Inject constructor(private val userRepo: UserRepository) :
     ViewModel() {
 
     private val _userData = MutableStateFlow<UserInformationModel?>(null)
