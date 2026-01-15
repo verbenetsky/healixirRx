@@ -1,5 +1,7 @@
 package com.example.pharmacystore.ui.auth.signIn
 
+import android.app.Activity
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pharmacystore.domain.model.Validation
@@ -9,6 +11,9 @@ import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthMultiFactorException
+import com.google.firebase.auth.MultiFactorResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +45,23 @@ class EmailPasswordSignInViewModel @Inject constructor(
     private val _authUiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val authUiState = _authUiState.asStateFlow()
 
+
+    // -------------------------MFA-----------------------------------------------------------------
+    // niestety musi to tutaj byc choc i wyglada nie dokonca ladnie
+    private val _mfaState = MutableStateFlow<MfaState>(MfaState.Idle)
+    val mfaState = _mfaState.asStateFlow()
+
+    private val _mfaEvents = MutableSharedFlow<MfaEvents>(replay = 0, extraBufferCapacity = 1)
+    val mfaEvents = _mfaEvents.asSharedFlow()
+
+    private val _resolver = MutableStateFlow<MultiFactorResolver?>(null)
+    val resolver = _resolver.asStateFlow()
+
+    private val _verificationId = MutableStateFlow<String?>(null)
+    val verificationId = _verificationId.asStateFlow()
+
+    // ---------------------------------------------------------------------------------------------
+
     private val _events = MutableSharedFlow<AuthEvent>(replay = 0, extraBufferCapacity = 1)
     val events = _events.asSharedFlow()
 
@@ -58,7 +80,7 @@ class EmailPasswordSignInViewModel @Inject constructor(
         }
     }
 
-    fun signIn(email: String, password: String) {
+    fun signIn(email: String, password: String, activity: Activity) {
         viewModelScope.launch {
             _authUiState.value = AuthUiState.Loading
             val result = repo.signInUser(email, password)
@@ -67,9 +89,61 @@ class EmailPasswordSignInViewModel @Inject constructor(
                 println("success")
                 _events.tryEmit(AuthEvent.NavigateToMainScreen)
             }.onFailure { err ->
-                println(err.localizedMessage ?: "Unknown error")
-                _authUiState.value = AuthUiState.Error(err.toAuthError().userMessage())
-                _events.tryEmit(AuthEvent.Error())
+                // jesli dostajemy FirebaseAuthMultiFactorException to znaczy ze do konkretnego tego emaila i hasla jest
+                // jest podpiety twoFA
+
+                if (err is FirebaseAuthMultiFactorException) {
+                    _resolver.value = err.resolver
+                    // odrazu wysylamy kod userowi
+                    sendMfaSms(activity)
+                } else {
+                    println(err)
+                    println(err.localizedMessage ?: "Unknown error")
+                    _authUiState.value = AuthUiState.Error(err.toAuthError().userMessage())
+                    _events.tryEmit(AuthEvent.Error())
+                }
+            }
+        }
+    }
+
+    fun sendMfaSms(activity: Activity) {
+        _authUiState.value = AuthUiState.Idle
+        if (_resolver.value == null) {
+            Log.d("TWOFA", "Resolver is null")
+            return
+        }
+        viewModelScope.launch {
+            _mfaState.value = MfaState.Loading
+            val res = repo.sendSmsCodeMfaSignIn(_resolver.value!!, activity)
+            res.onSuccess { verificationId ->
+
+                _events.tryEmit(AuthEvent.NavigateToMfaSmsCodeScreen)
+
+                _verificationId.value = verificationId
+
+                _mfaState.value = MfaState.MfaSmsCodeSent
+
+                Log.d("TWOFA", "Code successfully sent")
+
+            }.onFailure { err ->
+                _authUiState.value = AuthUiState.Error(mapSmsCodeError(err))
+                Log.d("TWOFA", "Error: ${err.localizedMessage ?: "error "}")
+            }
+        }
+    }
+
+    fun verifyMfaSmsCode(code: String, verificationId: String?) {
+        if (_resolver.value == null || _verificationId.value == null) {
+            Log.d("TWOFA", "Resolver or verification id is null")
+            return
+        }
+        viewModelScope.launch {
+            _mfaState.value = MfaState.Loading
+            val r = repo.verifySmsCodeMfaSignIn(code, verificationId!!, _resolver.value!!)
+            r.onSuccess {
+                _mfaEvents.tryEmit(MfaEvents.NavigateToMain)
+            }.onFailure { err ->
+                _mfaState.value = MfaState.Error(mapSmsCodeError(err))
             }
         }
     }
@@ -106,16 +180,28 @@ class EmailPasswordSignInViewModel @Inject constructor(
         }
     }
 
+    sealed interface MfaState {
+        data object Idle : MfaState
+        data object Loading : MfaState
+        data object MfaSmsCodeSent : MfaState
+        data class Error(val msg: String) : MfaState
+    }
+
+    sealed interface MfaEvents {
+        data object NavigateToMain : MfaEvents
+    }
 
     sealed interface AuthUiState {
         data object Idle : AuthUiState
         data object Loading : AuthUiState
+        data class MfaCodeRequired(val verId: String) : AuthUiState
         data class Error(val error: String) : AuthUiState // blad logowania
     }
 
     sealed interface AuthEvent {
         data class Error(val msg: String = "") : AuthEvent
         data object NavigateToMainScreen : AuthEvent
+        data object NavigateToMfaSmsCodeScreen : AuthEvent
     }
 
     sealed interface AuthError {
@@ -152,6 +238,57 @@ class EmailPasswordSignInViewModel @Inject constructor(
 
         return AuthError.Unknown
     }
+
+    private fun mapSmsCodeError(t: Throwable): String {
+        // Nie maskuj anulowania korutyn
+        if (t is kotlinx.coroutines.CancellationException) throw t
+
+        // Sieć / limity
+        if (t is FirebaseNetworkException) {
+            return "No internet connection. Please check your network and try again."
+        }
+        if (t is FirebaseTooManyRequestsException) {
+            return "Too many attempts. Please wait a moment and try again."
+        }
+
+        // Najczęstsze dla SMS/MFA: zły kod / wygasły kod / wygasła sesja
+        val authEx = t as? FirebaseAuthException
+        val code = authEx?.errorCode
+
+        return when {
+            // Zły kod / niewłaściwe credentiale SMS
+            t is FirebaseAuthInvalidCredentialsException ||
+                    code == "ERROR_INVALID_VERIFICATION_CODE" ||
+                    code == "ERROR_INVALID_CREDENTIAL" -> {
+                "Incorrect verification code. Please check the SMS and try again."
+            }
+
+            // Wygasły kod / wygasła sesja weryfikacji
+            code == "ERROR_CODE_EXPIRED" ||
+                    code == "ERROR_SESSION_EXPIRED" -> {
+                "The verification code has expired. Request a new code and try again."
+            }
+
+            // Użytkownik / sesja
+            t is FirebaseAuthInvalidUserException ||
+                    code == "ERROR_USER_DISABLED" ||
+                    code == "ERROR_USER_NOT_FOUND" -> {
+                "This account is no longer available. Please sign in again."
+            }
+
+            // Gdy resolver/flow MFA jest niekompletny albo stan jest nieprawidłowy
+            t is FirebaseAuthMultiFactorException -> {
+                "Additional verification is required. Please try signing in again."
+            }
+
+            // Fallback: pokaż sensowny tekst
+            else -> {
+                t.localizedMessage?.takeIf { it.isNotBlank() }
+                    ?: "Something went wrong. Please try again."
+            }
+        }
+    }
+
 
     fun AuthError.userMessage(): String = when (this) {
         AuthError.InvalidCredentials -> "Invalid email or password."

@@ -78,13 +78,10 @@ import com.example.pharmacystore.ui.theme.sagePerSecond
 fun SmsAuthScreen(
     navigateToSingUpMethodScreen: () -> Unit,
     navigateToHomeScreen: () -> Unit,
-    navigateToSettingsScreen: () -> Unit,
     navigateToAuthGate: () -> Unit,
     navigateToProfileSetUp: (String) -> Unit,
     authSmsViewModel: AuthSmsViewModel,
     originScreen: OriginScreen,
-
-    completeEnrollment: (code: String) -> Unit,
 ) {
     val activity = LocalContext.current as? Activity
         ?: throw IllegalStateException("Composable nie jest osadzone w Activity")
@@ -121,6 +118,7 @@ fun SmsAuthScreen(
 
     // Side effects na zmiany stanu UI
     LaunchedEffect(uiState) {
+
         when (val s = uiState) {
             is AuthSmsViewModel.AuthSmsUiState.Failed -> {
                 val msg = when (s.message) {
@@ -128,6 +126,7 @@ fun SmsAuthScreen(
                     AuthSmsViewModel.Err.TOO_MANY -> "Too many attempts. Try again later."
                     AuthSmsViewModel.Err.NO_NETWORK -> "No internet connection."
                     AuthSmsViewModel.Err.GENERIC -> "Unexpected error."
+                    AuthSmsViewModel.Err.BAD_CODE -> "The verification code from is invalid."
                 }
                 snackbarHostState.showSnackbar(msg)
             }
@@ -151,19 +150,6 @@ fun SmsAuthScreen(
             .fillMaxSize()
             .background(returnGradientBackGround())
     ) {
-        if (originScreen == OriginScreen.SETTINGS) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.Center
-            ) {
-                EnterConfirmationCode(
-                    onCheckClick = { code -> completeEnrollment(code) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        } else {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -197,6 +183,7 @@ fun SmsAuthScreen(
                                 AuthSmsViewModel.Err.TOO_MANY -> "Too many attempts. Try again later."
                                 AuthSmsViewModel.Err.NO_NETWORK -> "No internet connection."
                                 AuthSmsViewModel.Err.GENERIC -> "Unexpected error."
+                                AuthSmsViewModel.Err.BAD_CODE -> "The verification code from is invalid."
                             } else null,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -290,8 +277,6 @@ fun SmsAuthScreen(
                 }
                 Spacer(Modifier.height(90.dp))
             }
-        }
-
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier
@@ -306,11 +291,6 @@ fun SmsAuthScreen(
                 OriginScreen.PROFILE -> {
                     navigateToHomeScreen()
                 }
-
-                OriginScreen.SETTINGS -> {
-                    navigateToSettingsScreen()
-                }
-
                 else -> {
                     when (uiState) {
                         is AuthSmsViewModel.AuthSmsUiState.Idle,
@@ -325,10 +305,6 @@ fun SmsAuthScreen(
             when (originScreen) {
                 OriginScreen.PROFILE -> {
                     "Press back again to return to home screen"
-                }
-
-                OriginScreen.SETTINGS -> {
-                    "Press back again to return to settings screen"
                 }
 
                 else -> {
@@ -787,7 +763,7 @@ fun InfoDialog(
 }
 
 
-enum class OriginScreen { SIGN_UP, SIGN_IN, PROFILE, SETTINGS }
+enum class OriginScreen { SIGN_UP, SIGN_IN, PROFILE }
 
 private fun snackFor(origin: OriginScreen, isNew: Boolean): String =
     when (origin) {

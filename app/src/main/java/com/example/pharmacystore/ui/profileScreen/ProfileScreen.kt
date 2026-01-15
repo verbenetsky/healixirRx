@@ -68,7 +68,7 @@ fun ProfileScreen(
     loadCoolDown: () -> Unit,
     authEvents: SharedFlow<EmailPasswordSignInViewModel.AuthEvent>,
     onVerifyClick: (String) -> Unit,
-    navigateToSignUpScreen: (screen: String) -> Unit,
+    navigateToLinkEmailScreen: () -> Unit,
     navigateToProvidePhoneNumberScreen: () -> Unit,
     profileScreenViewModel: ProfileScreenViewModel,
     onLogoutClick: () -> Unit,
@@ -151,7 +151,7 @@ fun ProfileScreen(
                                 if (!userData!!.settings.enableLinking) {
                                     navigateToSettingsCue2FA()
                                 } else { // enableLinking == true
-                                    navigateToSignUpScreen("PROFILE")
+                                    navigateToLinkEmailScreen()
                                 }
                             },
                             onMissingPhoneNumClick = {

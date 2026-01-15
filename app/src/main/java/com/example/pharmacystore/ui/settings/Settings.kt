@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -71,12 +72,12 @@ import kotlinx.coroutines.flow.SharedFlow
 fun Settings(
     twoFaState: SettingsViewModel.TwoFaState,
     twoFaEvents: SharedFlow<TwoFaEvents>,
+
     isVerified: Boolean,
     twoFAState: Boolean,
     enableLinkingState: Boolean,
     reAuthState: SettingsViewModel.ReAuthState,
     reAuthUser: (String, Activity) -> Unit,
-    on2FAChange: (Boolean) -> Unit,
     onEnableLinkingChange: (Boolean) -> Unit,
     settingsViewModel: SettingsViewModel,
     userSettings: UserSettings?,
@@ -84,20 +85,20 @@ fun Settings(
     cue: String?,
     isDirty: Boolean,
 
-    navigateToCodeScreen: (String) -> Unit,
+    resetStateToIdle: () -> Unit,
+    navigateToCodeScreen: () -> Unit,
 ) {
-    var twoFADialog by remember { mutableStateOf(false) }
-    var providePasswordDialog by remember { mutableStateOf(false) }
-
     val context = LocalContext.current
     val activity = context as Activity
-
-    var password by remember { mutableStateOf("") }
-
 
     val haptics = LocalHapticFeedback.current
     var pulsing by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (pulsing) 1.05f else 1f, label = "scale")
+
+
+    var twoFADialog by remember { mutableStateOf(false) }
+    var providePasswordDialog by remember { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         twoFaEvents.collect { value ->
@@ -108,7 +109,7 @@ fun Settings(
 
                 is TwoFaEvents.NavigateToCodeScreen -> {
                     providePasswordDialog = false
-                    navigateToCodeScreen(value.verificationId)
+                    navigateToCodeScreen()
                     password = ""
                 }
 
@@ -207,10 +208,10 @@ fun Settings(
                     contentAlignment = Alignment.Center
                 ) {
                     Switch(
+                        enabled = !twoFAState,
                         checked = twoFAState,
                         onCheckedChange = {
                             settingsViewModel.checkIfEmailIsVerified { twoFADialog = true }
-                            // on2FAChange(it)
                         }
                     )
                 }
@@ -313,6 +314,7 @@ fun Settings(
             TwoFADialog(
                 onConfirm = {
                     providePasswordDialog = true
+                    resetStateToIdle()
                     twoFADialog = false
                     //on2FAChange(true)
                 },
@@ -330,6 +332,7 @@ fun Settings(
                     reAuthUser(password, activity)
                     twoFADialog = false
                 },
+                twoFAState = twoFaState,
                 onDismiss = { providePasswordDialog = false }
             )
         }
@@ -408,13 +411,13 @@ fun TwoFADialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProvidePasswordDialog(
+    twoFAState: SettingsViewModel.TwoFaState,
     password: String,
     onPasswordChange: (String) -> Unit,
     state: SettingsViewModel.ReAuthState,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    // var password by remember { mutableStateOf("") }
     var pwdVisible by remember { mutableStateOf(false) }
 
     BasicAlertDialog(
@@ -440,33 +443,50 @@ fun ProvidePasswordDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { onPasswordChange(it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    placeholder = {
-                        Text(
-                            "Password",
-                            color = profileSetupInk().copy(alpha = 0.7f)
-                        )
-                    },
-                    visualTransformation =
-                        if (pwdVisible) VisualTransformation.None
-                        else PasswordVisualTransformation(),
-                    leadingIcon = {
-                        Icon(Icons.Filled.Lock, contentDescription = null, tint = sagePerSecond)
-                    },
-                    isError = state is SettingsViewModel.ReAuthState.Error,
-                    trailingIcon = {
-                        val icon = if (pwdVisible) Icons.Default.Visibility
-                        else Icons.Default.VisibilityOff
-                        IconButton(onClick = { pwdVisible = !pwdVisible }) {
-                            Icon(icon, contentDescription = null, tint = sagePerSecond)
+                when (twoFAState) {
+                    SettingsViewModel.TwoFaState.CheckingPassword -> {
+                        Column(
+                            Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator()
                         }
                     }
-                )
+
+                    else -> {
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { onPasswordChange(it) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp),
+                            placeholder = {
+                                Text(
+                                    "Password",
+                                    color = profileSetupInk().copy(alpha = 0.7f)
+                                )
+                            },
+                            visualTransformation =
+                                if (pwdVisible) VisualTransformation.None
+                                else PasswordVisualTransformation(),
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Filled.Lock,
+                                    contentDescription = null,
+                                    tint = sagePerSecond
+                                )
+                            },
+                            isError = state is SettingsViewModel.ReAuthState.Error,
+                            trailingIcon = {
+                                val icon = if (pwdVisible) Icons.Default.Visibility
+                                else Icons.Default.VisibilityOff
+                                IconButton(onClick = { pwdVisible = !pwdVisible }) {
+                                    Icon(icon, contentDescription = null, tint = sagePerSecond)
+                                }
+                            }
+                        )
+                    }
+                }
 
                 when (state) {
                     is SettingsViewModel.ReAuthState.Error -> {

@@ -8,15 +8,15 @@ import com.google.firebase.FirebaseException
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.MultiFactorResolver
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.auth.PhoneMultiFactorGenerator
+import com.google.firebase.auth.PhoneMultiFactorInfo
 import jakarta.inject.Inject
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -25,20 +25,22 @@ import kotlin.coroutines.resumeWithException
 @Singleton
 class AuthRepositoryImpl @Inject constructor(private val auth: FirebaseAuth) : AuthRepository {
 
+
     // Zrobic re-auth, czyli zalogowac ponownie usera (jesli user jest zalogowany numerem telefonu to trzeba go zalogowac za pomoca emaila i hasla)
     override suspend fun reAuth(password: String): Result<Unit> = runCatching {
-        val user = FirebaseAuth.getInstance().currentUser ?: return@runCatching
+        val user = FirebaseAuth.getInstance().currentUser
+            ?: throw Exception("User not logged in.")
+
         val email: String? = user.email
 
         // jesli email jest null to user jest zalogowany numerem telefonu wiec trzeba poprosic go zeby zalogowal sie za pomoca maila i hasla
         if (email == null) {
-
+            Exception("email not found")
         } else {
             val credential = EmailAuthProvider.getCredential(email, password)
             user.reauthenticate(credential).await()
         }
     }
-
 
     override suspend fun checkIfEmailIsVerified(): Result<Boolean> = runCatching {
         val user = FirebaseAuth.getInstance().currentUser
@@ -137,7 +139,11 @@ class AuthRepositoryImpl @Inject constructor(private val auth: FirebaseAuth) : A
                     // This callback is invoked in response to invalid requests for
                     // verification, like an incorrect phone number.
                     val fae = e as? FirebaseAuthException
-                    Log.e("TWOFA", "type=${e.javaClass.name} code=${fae?.errorCode} msg=${e.message}", e)
+                    Log.e(
+                        "TWOFA",
+                        "type=${e.javaClass.name} code=${fae?.errorCode} msg=${e.message}",
+                        e
+                    )
                     if (cont.isActive) cont.resumeWithException(e)
                 }
             }
@@ -159,6 +165,56 @@ class AuthRepositoryImpl @Inject constructor(private val auth: FirebaseAuth) : A
         }
     }
 
+
+    override suspend fun sendSmsCodeMfaSignIn(
+        resolver: MultiFactorResolver,
+        activity: Activity
+    ): Result<String> = runCatching {
+
+        val phoneHint = resolver.hints
+            .filterIsInstance<PhoneMultiFactorInfo>()
+            .firstOrNull()
+
+        if (phoneHint == null) {
+            error("phone number is null")
+        }
+
+        suspendCancellableCoroutine { cont ->
+
+            val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                override fun onVerificationCompleted(p0: PhoneAuthCredential) {
+
+                }
+
+                override fun onVerificationFailed(p0: FirebaseException) {
+                    if (cont.isActive) cont.resumeWithException(p0)
+                }
+
+                override fun onCodeSent(
+                    verificationId: String,
+                    token: PhoneAuthProvider.ForceResendingToken
+                ) {
+                    if (cont.isActive) cont.resume(verificationId)
+                }
+            }
+
+            val phoneAuthOptions = PhoneAuthOptions.newBuilder(auth)
+                .setActivity(activity)
+                .setMultiFactorHint(phoneHint)
+                .setTimeout(60L, TimeUnit.SECONDS)
+                .setMultiFactorSession(resolver.session)
+                .setCallbacks(callbacks) // Optionally disable instant verification.
+                // .requireSmsValidation(true)
+                .build()
+
+            PhoneAuthProvider.verifyPhoneNumber(phoneAuthOptions)
+
+            cont.invokeOnCancellation {
+                // Brak twardego cancel dla verifyPhoneNumber; ignorujemy callbacki.
+                // sprzatanie
+            }
+        }
+    }
 
     override suspend fun completeEnrollment(verificationId: String, code: String): Result<Unit> =
         runCatching {
@@ -187,22 +243,32 @@ class AuthRepositoryImpl @Inject constructor(private val auth: FirebaseAuth) : A
         PhoneAuthResult(user, isNew)
     }
 
+    override suspend fun verifySmsCodeMfaSignIn(
+        code: String,
+        verificationId: String,
+        resolver: MultiFactorResolver
+    ): Result<Unit> = runCatching {
+
+        require(verificationId.isNotBlank()) { "verificationId is blank" }
+        require(code.isNotBlank()) { "code is blank" }
+
+        val credential = PhoneAuthProvider.getCredential(verificationId, code)
+        val multiFactorAssertion = PhoneMultiFactorGenerator.getAssertion(credential)
+        resolver.resolveSignIn(multiFactorAssertion).await()
+    }
+
     override suspend fun signUpUser(email: String, password: String): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                auth.createUserWithEmailAndPassword(email, password).await()
-                // val user = auth.currentUser ?: error("User not logged in")
-                // user.sendEmailVerification().await()
-                Unit
-            }
+        runCatching {
+            auth.createUserWithEmailAndPassword(email, password).await()
+            // val user = auth.currentUser ?: error("User not logged in")
+            // user.sendEmailVerification().await()
+            Unit
         }
 
     override suspend fun signInUser(email: String, password: String): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                auth.signInWithEmailAndPassword(email, password).await()
-                Unit
-            }
+        runCatching {
+            auth.signInWithEmailAndPassword(email, password).await()
+            Unit
         }
 
     override suspend fun linkEmail(email: String, password: String) = runCatching {
@@ -212,7 +278,7 @@ class AuthRepositoryImpl @Inject constructor(private val auth: FirebaseAuth) : A
         val user = auth.currentUser ?: error("User not logged in")
         val credential = EmailAuthProvider.getCredential(email, password)
 
-        user.linkWithCredential(credential)
+        user.linkWithCredential(credential).await()
         println("email linked")
         Unit
     }

@@ -24,7 +24,11 @@ import com.example.pharmacystore.repo.toOrderItem
 import com.example.pharmacystore.repo.toStockDecrementItem
 import com.example.pharmacystore.ui.auth.AuthSmsViewModel
 import com.example.pharmacystore.ui.auth.OriginScreen
+import com.example.pharmacystore.ui.auth.SignInMfaSmsCode
 import com.example.pharmacystore.ui.auth.SmsAuthScreen
+import com.example.pharmacystore.ui.auth.TwoFAScreenCode
+import com.example.pharmacystore.ui.auth.linkEmail.LinkEmailPasswordScreen
+import com.example.pharmacystore.ui.auth.linkEmail.LinkEmailViewModel
 import com.example.pharmacystore.ui.auth.signIn.AuthGate
 import com.example.pharmacystore.ui.auth.signIn.AuthGateViewModel
 import com.example.pharmacystore.ui.auth.signIn.CheckIfUserLoggedIn
@@ -87,9 +91,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                         }
 
                     },
-                    navigateToAuthGateScreen = {
-                        nav.navigate(Screen.AuthGate.route)
-                    },
+                    navigateToAuthGateScreen = { nav.navigate(Screen.AuthGate.route) },
                 )
             }
         }
@@ -119,30 +121,19 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                 RegistrationScreenOptions(
                     navigateToSignInScreenOptions = { nav.navigate(Screen.SignInOptions.route) },
                     onPhoneRegister = { screen -> nav.navigate(Screen.AuthSmsScreen.route(screen)) },
-                    onEmailRegister = { nav.navigate(Screen.EmailPasswordSignUpScreen.route(null)) }
+                    onEmailRegister = { nav.navigate(Screen.EmailPasswordSignUpScreen) }
                 )
             }
 
             // ekran z text fieldami gdzie wpisujemy email i haslo
-            composable(
-                Screen.EmailPasswordSignUpScreen.route,
-                arguments = listOf(
-                    navArgument("originScreen") {
-                        type = NavType.StringType
-                        defaultValue = null
-                        nullable = true
-                    })
-            ) { backStack ->
-                val screen = backStack.arguments?.getString("originScreen")
+            composable(Screen.EmailPasswordSignUpScreen.route) {
                 val viewModel: EmailPasswordSignUpViewModel = hiltViewModel()
 
                 EmailPasswordSignUp(
-                    screen = screen,
                     emailPasswordSignUpViewModel = viewModel,
                     navigateToAccountSetUpScreen = { email ->
                         nav.navigate("profileSetUp?email=${Uri.encode(email)}")
                     },
-                    navigateToProfileScreen = { nav.popBackStack() },
                     navigateToSingUpMethodScreen = {
                         nav.navigate(Screen.SignInOptions.route) {
                             popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
@@ -155,28 +146,13 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
             composable(
                 Screen.AuthSmsScreen.route,
                 arguments = listOf(
-                    navArgument("screen") {
-                        type = NavType.EnumType(OriginScreen::class.java)
-                        navArgument("vid") { type = NavType.StringType; nullable = true }
-                    })
+                    navArgument("screen") { type = NavType.EnumType(OriginScreen::class.java) })
             ) { backStackEntry ->
                 val viewModel: AuthSmsViewModel = hiltViewModel()
-                val settingsViewModel: SettingsViewModel = hiltViewModel()
                 val screen = backStackEntry.arguments?.getSerializable("screen") as OriginScreen
-                val verificationId = backStackEntry.arguments?.getString("vid") // może być null
 
                 SmsAuthScreen(
                     navigateToHomeScreen = { nav.popBackStack() },
-                    completeEnrollment = { code ->
-                        if (verificationId != null)
-                            settingsViewModel.completeEnrollment(
-                            verificationId,
-                            code
-                        )
-                    },
-
-                    navigateToSettingsScreen = { nav.popBackStack() },
-
                     navigateToProfileSetUp = { phoneNumber ->
                         nav.navigate("profileSetUp?phoneNumber=${Uri.encode(phoneNumber)}")
                     },
@@ -186,9 +162,8 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                             popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
                         }
                     },
-                    navigateToAuthGate = {
-                        nav.navigate(Screen.AuthGate.route)
-                    },
+
+                    navigateToAuthGate = { nav.navigate(Screen.AuthGate.route) },
                     originScreen = screen,
                 )
             }
@@ -233,7 +208,10 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
             }
 
             composable(Screen.EmailPasswordSignInScreen.route) {
-                val viewModel: EmailPasswordSignInViewModel = hiltViewModel()
+                val authGraphEntry =
+                    remember(it) { nav.getBackStackEntry(NavGraphs.AUTH_GRAPH.toRegularString()) }
+
+                val viewModel: EmailPasswordSignInViewModel = hiltViewModel(authGraphEntry)
 
                 EmailPasswordSignIn(
                     emailPasswordSignInViewModel = viewModel,
@@ -248,6 +226,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                             popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
                         }
                     },
+                    navigateToSignInMfaCode = { nav.navigate(Screen.SignInMfaSmsCode.route) },
                     navigateToAuthGate = { nav.navigate(Screen.AuthGate.route) }
                 )
             }
@@ -273,6 +252,67 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                     },
                 )
             }
+
+            composable(Screen.TwoFaCodeScreen.route) {
+                val mainGraphEntry =
+                    remember(it) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
+                val settingsViewModel: SettingsViewModel = hiltViewModel(mainGraphEntry)
+
+                val verificationId by settingsViewModel.verificationId.collectAsStateWithLifecycle()
+                val twoFaState by settingsViewModel.twoFaState.collectAsStateWithLifecycle()
+
+                TwoFAScreenCode(
+                    completeEnrollment = { code ->
+                        if (verificationId != null)
+                            settingsViewModel.completeEnrollment(verificationId, code)
+                    },
+                    twoFaEvents = settingsViewModel.twoFAEvents,
+                    twoFaState = twoFaState,
+                    navigateToSettingsScreen = { nav.popBackStack() },
+                    navigateToProfileScreen = {
+                        nav.popBackStack()
+                        nav.popBackStack()
+                    }
+                )
+            }
+
+            composable(Screen.SignInMfaSmsCode.route) {
+                val authGraphEntry =
+                    remember(it) { nav.getBackStackEntry(NavGraphs.AUTH_GRAPH.toRegularString()) }
+
+                val viewModel: EmailPasswordSignInViewModel = hiltViewModel(authGraphEntry)
+
+                val state by viewModel.mfaState.collectAsStateWithLifecycle()
+                val verificationId by viewModel.verificationId.collectAsStateWithLifecycle()
+
+                SignInMfaSmsCode(
+                    mfaEvents = viewModel.mfaEvents,
+                    mfaState = state,
+                    verifyMfaSmsCode = { code -> viewModel.verifyMfaSmsCode(code, verificationId) },
+                    navigateToMain = { nav.navigate(Screen.HomeScreen.route) },
+                    navigateToSignInScreen = { nav.popBackStack() }
+                )
+            }
+
+            composable(Screen.LinkEmailPasswordScreen.route) {
+                val viewModel: LinkEmailViewModel = hiltViewModel()
+
+                val email by viewModel.email.collectAsStateWithLifecycle()
+                val validation by viewModel.validationState.collectAsStateWithLifecycle()
+                val linkEmailState by viewModel.linkEmailState.collectAsStateWithLifecycle()
+
+                LinkEmailPasswordScreen(
+                    linkEmail = { email, password -> viewModel.linkEmail(email, password) },
+                    validatePassword = { viewModel.validatePassword(it) },
+                    validation = validation,
+                    email = email,
+                    updateEmail = { newValue -> viewModel.updateEmail(newValue) },
+                    linkEmailState = linkEmailState,
+                    linkEmailEvent = viewModel.linkEmailEvents,
+                    navigateToProfileScreen = { nav.popBackStack() },
+                )
+            }
+
         }
         navigation(
             startDestination = Screen.HomeScreen.route,
@@ -327,9 +367,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                             }
                         )
                     },
-                    navigateToSignUpScreen = { screen ->
-                        nav.navigate(Screen.EmailPasswordSignUpScreen.route(screen))
-                    },
+                    navigateToLinkEmailScreen = { nav.navigate(Screen.LinkEmailPasswordScreen.route) },
                     navigateToSettingsCue2FA = {
                         nav.navigate("settings?cue=2FA") {
                             launchSingleTop = true
@@ -348,7 +386,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                 val mainGraphEntry =
                     remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.MAIN_GRAPH.toRegularString()) }
                 val viewModel: ProfileScreenViewModel = hiltViewModel(mainGraphEntry)
-                val settingsViewModel: SettingsViewModel = hiltViewModel()
+                val settingsViewModel: SettingsViewModel = hiltViewModel(mainGraphEntry)
                 //--------------------------------------------------------------------------------------
 
                 val isVerified by settingsViewModel.isVerified.collectAsStateWithLifecycle()
@@ -365,13 +403,14 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                 val isDirty = draft != origin
 
                 Settings(
+                    resetStateToIdle = { settingsViewModel.changeStateToIdle() },
                     reAuthState = reAuthState,
                     twoFaEvents = settingsViewModel.twoFAEvents,
                     twoFaState = twoFaState,
                     isVerified = isVerified,
                     twoFAState = draft.twoFactorEnabled,
                     enableLinkingState = draft.enableLinking,
-                    on2FAChange = { draft = draft.copy(twoFactorEnabled = it) },
+                    // on2FAChange = { draft = draft.copy(twoFactorEnabled = it) },
                     onEnableLinkingChange = { draft = draft.copy(enableLinking = it) },
                     isDirty = isDirty,
                     settingsViewModel = settingsViewModel,
@@ -380,13 +419,8 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                     refreshUser = { viewModel.refreshUser() },
                     reAuthUser = { passwd, act -> settingsViewModel.reAuth(passwd, act) },
 
-                    navigateToCodeScreen = { vid ->
-                        nav.navigate(
-                            Screen.AuthSmsScreen.route(
-                                OriginScreen.SETTINGS,
-                                vid
-                            )
-                        )
+                    navigateToCodeScreen = {
+                        nav.navigate(Screen.TwoFaCodeScreen.route)
                     }
                 )
             }
@@ -748,21 +782,13 @@ sealed class Screen(val route: String) {
     // Auth flow
     data object SignInOptions : Screen("loginOpt")
     data object RegisterOptions : Screen("registerOpt") // 1
-    data object AuthSmsScreen : Screen("authSms/{screen}?vid={vid}") {
-        fun route(screen: OriginScreen, verificationId: String? = null): String {
-            return if (verificationId == null) {
-                "authSms/$screen"                // stara ścieżka nadal działa
-            } else {
-                "authSms/$screen?vid=${Uri.encode(verificationId)}"
-            }
+    data object AuthSmsScreen : Screen("authSms/{screen}") {
+        fun route(screen: OriginScreen): String {
+            return "authSms/$screen"
         }
     }
 
-    data object EmailPasswordSignUpScreen : Screen("email_sign_up?originScreen={originScreen}") {
-        fun route(originScreen: String? = null): String =
-            if (originScreen == null) "email_sign_up" else "email_sign_up?originScreen=$originScreen"
-    } // 2
-
+    data object EmailPasswordSignUpScreen : Screen("email_sign_up")
     data object EmailPasswordSignInScreen : Screen("email_sign_in")
     data object AuthGate : Screen("authGate")
 
@@ -789,6 +815,11 @@ sealed class Screen(val route: String) {
     data object CheckIfUserLoggedInScreen : Screen("check_login_state")
 
     data object OrdersScreen : Screen("orders")
+
+    data object TwoFaCodeScreen : Screen("two_fa_code_screen")
+    data object SignInMfaSmsCode : Screen("mfa_code_screen")
+
+    data object LinkEmailPasswordScreen : Screen("link_email_password_screen")
 }
 
 enum class NavGraphs {

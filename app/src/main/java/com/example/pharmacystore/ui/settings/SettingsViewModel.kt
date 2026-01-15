@@ -24,6 +24,8 @@ class SettingsViewModel @Inject constructor(
     private val userRepo: UserRepository,
     private val authRepo: AuthRepository
 ) : ViewModel() {
+    private val _verificationId = MutableStateFlow<String?>(null)
+    val verificationId = _verificationId.asStateFlow()
 
     private val _isVerified = MutableStateFlow(false)
     val isVerified = _isVerified.asStateFlow()
@@ -72,7 +74,7 @@ class SettingsViewModel @Inject constructor(
 
     private suspend fun getPhoneNumber(): String? {
         val phoneNumber = userRepo.getPhoneNumber().getOrNull()
-        return phoneNumber?.filter { it != ' '}
+        return phoneNumber?.filter { it != ' ' }
     }
 
     fun mfaEnrollment(activity: Activity) {
@@ -82,22 +84,27 @@ class SettingsViewModel @Inject constructor(
             res.onSuccess { verificationId ->
                 Log.e("TWOFA", "mfaEnrollment success, navigate to code screen")
                 _twoFaState.value = TwoFaState.AwaitingCode(verificationId)
-                _twoFAEvents.tryEmit(TwoFaEvents.NavigateToCodeScreen(verificationId))
+                _twoFAEvents.tryEmit(TwoFaEvents.NavigateToCodeScreen)
+                _verificationId.value = verificationId
             }.onFailure { e ->
                 _twoFaState.value = TwoFaState.SmsError(e.localizedMessage ?: "Failed to send SMS.")
 
                 Log.e("TWOFA", "Failed to send SMS.")
-                Log.e("TWOFA", e.localizedMessage ?:"")
+                Log.e("TWOFA", e.localizedMessage ?: "")
             }
         }
     }
 
     fun completeEnrollment(verificationId: String?, code: String) {
         viewModelScope.launch {
+            _twoFaState.value = TwoFaState.Enrolling
             if (verificationId == null) return@launch
             authRepo.completeEnrollment(verificationId, code)
                 .onSuccess { // udalo sie zrobic 2fa
                     _twoFaState.value = TwoFaState.Enabled
+                    _twoFAEvents.tryEmit(TwoFaEvents.NavigateToProfileScreen)
+
+                    userRepo.saveSettingsForUser(UserSettings(twoFactorEnabled = true))
                     Log.d("TWOFA", "2fa Enabled")
                 }
                 .onFailure { e ->
@@ -109,9 +116,11 @@ class SettingsViewModel @Inject constructor(
 
     fun reAuth(password: String, activity: Activity) {
         viewModelScope.launch {
+            _twoFaState.value = TwoFaState.CheckingPassword
             authRepo.reAuth(password).fold(
                 onSuccess = {
                     Log.d("AUTH", "success reAuth")
+                    mfaEnrollment(activity)
                 },
                 onFailure = { e ->
 
@@ -136,7 +145,6 @@ class SettingsViewModel @Inject constructor(
                     Log.e("AUTH", "error reAuth")
                 }
             )
-            mfaEnrollment(activity)
         }
     }
 
@@ -154,17 +162,15 @@ class SettingsViewModel @Inject constructor(
 
     sealed interface TwoFaState {
         data object Idle : TwoFaState
-//        data object CheckingPrerequisites : TwoFaState
+        data object CheckingPassword : TwoFaState
 //        data object NeedPassword : TwoFaState
 //        data class ReAuthError(val msg: String) : TwoFaState
-
-        data object ReAuthSuccess : TwoFaState
 
         //data object SendingSms : TwoFaState
         data class AwaitingCode(val verificationId: String) : TwoFaState
         data class SmsError(val msg: String) : TwoFaState
 
-        //data object Enrolling : TwoFaState
+        data object Enrolling : TwoFaState
         data object Enabled : TwoFaState
         data class EnrollError(val msg: String) : TwoFaState
 
@@ -175,7 +181,8 @@ class SettingsViewModel @Inject constructor(
 
     sealed interface TwoFaEvents {
         data object ClearPassword : TwoFaEvents
-        data class NavigateToCodeScreen(val verificationId: String) : TwoFaEvents
+        data object NavigateToCodeScreen : TwoFaEvents
+        data object NavigateToProfileScreen : TwoFaEvents
         data object Idle : TwoFaEvents
     }
 
@@ -183,5 +190,9 @@ class SettingsViewModel @Inject constructor(
     sealed interface ReAuthState {
         data class Error(val msg: String) : ReAuthState
         data object Idle : ReAuthState
+    }
+
+    fun changeStateToIdle() {
+        _reAuthState.value = ReAuthState.Idle
     }
 }

@@ -76,6 +76,7 @@ class AuthSmsViewModel @Inject constructor(
                     setCooldown(fullPhone)
                 }
                 .onFailure { err ->
+                    println(err)
                     _uiState.value = AuthSmsUiState.Failed(mapError(err))
                 }
         }
@@ -91,6 +92,7 @@ class AuthSmsViewModel @Inject constructor(
                     // tu NIE dotykamy cooldownu – on już został ustawiony po wysłaniu SMS
                 }
                 .onFailure { err ->
+                    println(err)
                     _uiState.value = AuthSmsUiState.Failed(mapError(err))
                 }
         }
@@ -122,7 +124,10 @@ class AuthSmsViewModel @Inject constructor(
                                     "additional sign-in method for convenience and security."
                         )
                     )
-                    userRepo.addPhoneNumberToFirestore(_phoneNumber.value, _countryPrefix.value.prefix.toString())
+                    userRepo.addPhoneNumberToFirestore(
+                        _phoneNumber.value,
+                        _countryPrefix.value.prefix.toString()
+                    )
                 }
                 .onFailure { err ->
                     println(err)
@@ -181,14 +186,11 @@ class AuthSmsViewModel @Inject constructor(
         data class FailedLinking(val message: LinkPhoneError) : AuthSmsUiState()
     }
 
-    enum class Err { BAD_PHONE, TOO_MANY, NO_NETWORK, GENERIC }
+    enum class Err { BAD_PHONE, TOO_MANY,BAD_CODE, NO_NETWORK, GENERIC }
 
     private fun mapError(t: Throwable): Err = when (t) {
         is FirebaseNetworkException, is IOException -> Err.NO_NETWORK
-        is FirebaseAuthInvalidCredentialsException -> when (t.errorCode) {
-            "ERROR_INVALID_PHONE_NUMBER" -> Err.BAD_PHONE
-            else -> Err.GENERIC
-        }
+        is FirebaseAuthInvalidCredentialsException -> Err.BAD_CODE
 
         is FirebaseTooManyRequestsException -> Err.TOO_MANY
         else -> Err.GENERIC

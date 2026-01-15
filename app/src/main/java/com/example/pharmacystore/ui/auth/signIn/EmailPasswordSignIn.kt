@@ -1,10 +1,10 @@
 package com.example.pharmacystore.ui.auth.signIn
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,7 +27,6 @@ import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -64,23 +62,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.pharmacystore.common.DoubleBackReact
-import com.example.pharmacystore.common.Screen
 import com.example.pharmacystore.common.returnGradientBackGround
-import com.example.pharmacystore.ui.auth.signUp.EmailPasswordSignUpViewModel
 import com.example.pharmacystore.ui.theme.sagePerSecond
-import com.google.android.libraries.places.api.model.kotlin.localDate
 
 @Composable
 fun EmailPasswordSignIn(
     emailPasswordSignInViewModel: EmailPasswordSignInViewModel,
     // navigateToHomeScreen: () -> Unit,
     navigateToAuthGate: () -> Unit,
-    navigateToSingInMethodScreen: () -> Unit
+    navigateToSingInMethodScreen: () -> Unit,
+    navigateToSignInMfaCode: () -> Unit
 ) {
 
     val context = LocalContext.current
+    val activity = context as Activity
     var password by remember { mutableStateOf("") }
 
     val email by emailPasswordSignInViewModel.email.collectAsState()
@@ -104,6 +100,10 @@ fun EmailPasswordSignIn(
                 EmailPasswordSignInViewModel.AuthEvent.NavigateToMainScreen -> {
                     navigateToAuthGate()
                     Toast.makeText(context, "Logged In", Toast.LENGTH_SHORT).show()
+                }
+
+                EmailPasswordSignInViewModel.AuthEvent.NavigateToMfaSmsCodeScreen -> {
+                    navigateToSignInMfaCode()
                 }
             }
         }
@@ -167,7 +167,11 @@ fun EmailPasswordSignIn(
                         colors = tfColors,
                         shape = RoundedCornerShape(16.dp),
                         leadingIcon = {
-                            Icon(Icons.Filled.Email, contentDescription = null, tint = sagePerSecond)
+                            Icon(
+                                Icons.Filled.Email,
+                                contentDescription = null,
+                                tint = sagePerSecond
+                            )
                         }
                     )
 
@@ -220,7 +224,10 @@ fun EmailPasswordSignIn(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                                    modifier = Modifier.padding(
+                                        horizontal = 12.dp,
+                                        vertical = 12.dp
+                                    ),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
@@ -246,7 +253,7 @@ fun EmailPasswordSignIn(
 
                     Button(
                         onClick = {
-                            emailPasswordSignInViewModel.signIn(email, password)
+                            emailPasswordSignInViewModel.signIn(email, password, activity)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = validation.email && email.isNotEmpty()
@@ -334,7 +341,7 @@ fun AuthHeaderCard(
                         .size(56.dp)
                         .clip(CircleShape)
                         .border(1.dp, sagePerSecond.copy(alpha = 0.25f), CircleShape)
-                        .background(Color.White.copy(alpha = 0.20f )),
+                        .background(Color.White.copy(alpha = 0.20f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(icon, contentDescription = null, tint = sagePerSecond)

@@ -1,6 +1,5 @@
-package com.example.pharmacystore.ui.auth.signUp
+package com.example.pharmacystore.ui.auth.linkEmail
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -28,9 +27,9 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockReset
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,9 +40,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,84 +48,56 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.pharmacystore.common.DoubleBackReact
 import com.example.pharmacystore.common.returnGradientBackGround
+import com.example.pharmacystore.domain.model.Validation
+import com.example.pharmacystore.ui.auth.InfoDialog
 import com.example.pharmacystore.ui.auth.signIn.AuthHeaderCard
 import com.example.pharmacystore.ui.auth.signIn.AuthSectionCard
 import com.example.pharmacystore.ui.auth.signIn.authInk
 import com.example.pharmacystore.ui.auth.signIn.authOutlinedTextFieldColors
 import com.example.pharmacystore.ui.theme.sagePerSecond
+import kotlinx.coroutines.flow.SharedFlow
+
+// taki sam screen jak EmailPasswordSignUp tylko ze troche inny use case
 
 @Composable
-fun EmailPasswordSignUp(
-    navigateToAccountSetUpScreen: (String) -> Unit,
-    navigateToSingUpMethodScreen: () -> Unit,
-    emailPasswordSignUpViewModel: EmailPasswordSignUpViewModel
+fun LinkEmailPasswordScreen(
+    linkEmailEvent: SharedFlow<LinkEmailViewModel.LinkEmailEvent>,
+    linkEmailState: LinkEmailViewModel.LinkEmailState,
+    email: String,
+    validation: Validation,
+    updateEmail: (String) -> Unit,
+    navigateToProfileScreen: () -> Unit,
+    validatePassword: (String) -> Unit,
+    linkEmail: (String, String) -> Unit
 ) {
-    val context = LocalContext.current
-
-    var password by remember { mutableStateOf("") }
+    var dialogText by remember { mutableStateOf("") }
+    var showDialog by remember { mutableStateOf(false) }
+    var password1 by remember { mutableStateOf("") }
     var password2 by remember { mutableStateOf("") }
 
-    val email by emailPasswordSignUpViewModel.email.collectAsState()
-    val validation by emailPasswordSignUpViewModel.validationState.collectAsState()
-    val authUiState by emailPasswordSignUpViewModel.authUiState.collectAsState()
+    val isLoading = linkEmailState is LinkEmailViewModel.LinkEmailState.Loading
 
-    val isLoading = authUiState is EmailPasswordSignUpViewModel.AuthUiState.Loading
-
-    DoubleBackReact(
-        exit = { navigateToSingUpMethodScreen() },
-        message = "Press back again to return to starting screen"
-    )
-
-    LaunchedEffect(emailPasswordSignUpViewModel.events) {
-        emailPasswordSignUpViewModel.events.collect { data ->
-            when (data) {
-//                EmailPasswordSignInViewModel.AuthEvent.Error -> {
-//                    password = ""
-//                    password2 = ""
-//                    emailPasswordSignUpViewModel.resetAuthState()
-//                }
-
-                EmailPasswordSignUpViewModel.AuthEvents.NavigateToMainScreen -> {
-
-                }
-
-//                is EmailPasswordSignUpViewModel.AuthEvents.EmailSuccessfullyLinked -> {
-//                    dialogText = data.msg
-//                    showDialog = true
-//                }
-
-                EmailPasswordSignUpViewModel.AuthEvents.NavigateToProfileSetUpScreen -> {
-                    navigateToAccountSetUpScreen(email)
-                    Toast.makeText(context, "Successfully sign up", Toast.LENGTH_SHORT).show()
+    LaunchedEffect(Unit) {
+        linkEmailEvent.collect { value ->
+            when (value) {
+                is LinkEmailViewModel.LinkEmailEvent.EmailSuccessfullyLinked -> {
+                    navigateToProfileScreen()
                 }
             }
         }
     }
 
-    //    // dla success i error
-    //    LaunchedEffect(authUiState) {
-    //        when (val s = authUiState) {
-    //            is EmailPasswordSignUpViewModel.AuthUiState.Error -> {
-    //                Toast.makeText(context, s.error, Toast.LENGTH_SHORT).show()
-    //            }
-    //
-    //            else -> Unit
-    //        }
-    //    }
+    DoubleBackReact(
+        message = "Press back again to return to home screen",
+        exit = { navigateToProfileScreen() }
+    )
 
-    DisposableEffect(Unit) {
-        onDispose {
-            emailPasswordSignUpViewModel.resetAuthState()
-            emailPasswordSignUpViewModel.updateEmail("") // reset emaila
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -145,15 +114,15 @@ fun EmailPasswordSignUp(
         ) {
 
             AuthHeaderCard(
-                title = "Sign Up",
-                subtitle = "Create your account with e-mail and password.",
-                icon = Icons.Filled.PersonAdd
+                title = "Link email to your account",
+                subtitle = "Add email and password sign-in to your existing account.",
+                icon = Icons.Outlined.Link
             )
 
             if (isLoading) {
                 AuthSectionCard(
                     title = "Please wait",
-                    subtitle = "We are creating your account."
+                    subtitle = "We are linking your account."
                 ) {
                     Box(
                         modifier = Modifier
@@ -172,7 +141,7 @@ fun EmailPasswordSignUp(
 
                     OutlinedTextField(
                         value = email,
-                        onValueChange = { emailPasswordSignUpViewModel.updateEmail(it) },
+                        onValueChange = { updateEmail(it) },
                         label = { Text("E-mail") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -201,10 +170,10 @@ fun EmailPasswordSignUp(
 
                     var pwdVisible by remember { mutableStateOf(false) }
                     OutlinedTextField(
-                        value = password,
+                        value = password1,
                         onValueChange = {
-                            password = it
-                            emailPasswordSignUpViewModel.validatePassword(it)
+                            password1 = it
+                            validatePassword(it)
                         },
                         label = { Text("password") },
                         singleLine = true,
@@ -218,7 +187,7 @@ fun EmailPasswordSignUp(
                                 Icon(icon, contentDescription = null, tint = sagePerSecond)
                             }
                         },
-                        isError = password.isNotEmpty() && !validation.password,
+                        isError = password1.isNotEmpty() && !validation.password,
                         modifier = Modifier.fillMaxWidth(),
                         colors = tfColors,
                         shape = RoundedCornerShape(16.dp),
@@ -226,7 +195,7 @@ fun EmailPasswordSignUp(
                             Icon(Icons.Filled.Lock, contentDescription = null, tint = sagePerSecond)
                         }
                     )
-                    if (password.isNotEmpty() && !validation.password) {
+                    if (password1.isNotEmpty() && !validation.password) {
                         Spacer(Modifier.height(4.dp))
                         Surface(
                             color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
@@ -265,7 +234,7 @@ fun EmailPasswordSignUp(
                         visualTransformation =
                             if (pwdVisible) VisualTransformation.None
                             else PasswordVisualTransformation(),
-                        isError = password2.isNotEmpty() && password2 != password,
+                        isError = password2.isNotEmpty() && password2 != password1,
                         modifier = Modifier.fillMaxWidth(),
                         colors = tfColors,
                         shape = RoundedCornerShape(16.dp),
@@ -277,7 +246,7 @@ fun EmailPasswordSignUp(
                             )
                         }
                     )
-                    if (password2.isNotEmpty() && password2 != password) {
+                    if (password2.isNotEmpty() && password2 != password1) {
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "Passwords don't match",
@@ -286,8 +255,8 @@ fun EmailPasswordSignUp(
                         )
                     }
 
-                    when (val s = authUiState) {
-                        is EmailPasswordSignUpViewModel.AuthUiState.Error -> {
+                    when (linkEmailState) {
+                        is LinkEmailViewModel.LinkEmailState.Error -> {
                             Spacer(Modifier.height(6.dp))
                             Surface(
                                 color = Color.White.copy(alpha = 0.18f),
@@ -309,7 +278,7 @@ fun EmailPasswordSignUp(
                                     )
                                     Spacer(Modifier.width(8.dp))
                                     Text(
-                                        text = s.error,
+                                        text = linkEmailState.error,
                                         color = ink,
                                         style = MaterialTheme.typography.bodySmall
                                     )
@@ -324,22 +293,15 @@ fun EmailPasswordSignUp(
 
                     Button(
                         onClick = {
-//                            if (screen != null) {
-//                                println("screen is not null")
-//                                emailPasswordSignUpViewModel.linkEmail(email, password)
-//                                password = ""
-//                                password2 = ""
-//                            } else {
-                            emailPasswordSignUpViewModel.signUp(email, password)
-                            password = ""
+                            linkEmail(email, password1)
+                            password1 = ""
                             password2 = ""
-//                            }
                         },
 
                         enabled = validation.email &&
                                 validation.password &&
-                                password == password2 &&
-                                password.isNotEmpty() &&
+                                password1 == password2 &&
+                                password1.isNotEmpty() &&
                                 password2.isNotEmpty() &&
                                 email.isNotEmpty(),
                         modifier = Modifier.fillMaxWidth(),
@@ -365,6 +327,15 @@ fun EmailPasswordSignUp(
                 )
             )
         }
+
+        if (showDialog) {
+            InfoDialog(
+                text = dialogText,
+                onDismiss = {
+                    showDialog = false
+                    navigateToProfileScreen()
+                }
+            )
+        }
     }
 }
-
