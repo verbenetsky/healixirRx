@@ -64,10 +64,12 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.pharmacystore.common.DoubleBackReact
 import com.example.pharmacystore.common.returnGradientBackGround
+import com.example.pharmacystore.ui.auth.InfoDialog
 import com.example.pharmacystore.ui.theme.sagePerSecond
 
 @Composable
 fun EmailPasswordSignIn(
+    screen: String? = null,
     emailPasswordSignInViewModel: EmailPasswordSignInViewModel,
     // navigateToHomeScreen: () -> Unit,
     navigateToAuthGate: () -> Unit,
@@ -78,6 +80,7 @@ fun EmailPasswordSignIn(
     val context = LocalContext.current
     val activity = context as Activity
     var password by remember { mutableStateOf("") }
+    var showDialog by remember { mutableStateOf(false) }
 
     val email by emailPasswordSignInViewModel.email.collectAsState()
     val authUiState by emailPasswordSignInViewModel.authUiState.collectAsState()
@@ -275,6 +278,15 @@ fun EmailPasswordSignIn(
             Spacer(Modifier.height(90.dp))
         }
     }
+    if (screen != null && !showDialog) {
+        InfoDialog(
+            text = "This account has two-factor authentication enabled. You were redirected from " +
+                    "the phone number screen because SMS cannot be used as the first sign-in method for this account. " +
+                    "Please sign in first with email/password. " +
+                    "After that, you can confirm an SMS code.",
+            onDismiss = { showDialog = true }
+        )
+    }
 }
 
 /* ─────────────────────────  UI wspólne (tylko wygląd)  ───────────────────────── */
@@ -376,7 +388,7 @@ fun AuthSectionCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         border = BorderStroke(0.4.dp, ink.copy(alpha = 0.10f)),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Box(

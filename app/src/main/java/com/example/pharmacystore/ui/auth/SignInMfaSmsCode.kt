@@ -49,7 +49,6 @@ fun SignInMfaSmsCode(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-
         mfaEvents.collect { value ->
             when (value) {
                 EmailPasswordSignInViewModel.MfaEvents.NavigateToMain -> {
@@ -133,4 +132,5 @@ fun SignInMfaSmsCode(
             }
         }
     }
+
 }

@@ -1,6 +1,7 @@
 package com.example.pharmacystore.ui.auth
 
 import android.app.Activity
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pharmacystore.data.datastore.DataStoreRepo
@@ -25,6 +26,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.IOException
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 @HiltViewModel
 class AuthSmsViewModel @Inject constructor(
@@ -76,8 +78,18 @@ class AuthSmsViewModel @Inject constructor(
                     setCooldown(fullPhone)
                 }
                 .onFailure { err ->
-                    println(err)
-                    _uiState.value = AuthSmsUiState.Failed(mapError(err))
+                    // oznacza ze user ma wlaczony twoFA ale probuje zalogowac sie samym numerem telefonu
+                    if (mapError(err) == AuthError.FirstFactorRequired) {
+                        _events.tryEmit(AuthSmsUiEvent.NavigateToSignInScreen)
+                        Log.d(
+                            "TWOFA",
+                            "user ma wlaczony twoFA ale probuje zalogowac sie samym numerem telefonu"
+                        )
+                        _uiState.value = AuthSmsUiState.FistFactorReq
+                    } else {
+                        println(err)
+                        _uiState.value = AuthSmsUiState.Failed(mapError(err))
+                    }
                 }
         }
     }
@@ -175,6 +187,7 @@ class AuthSmsViewModel @Inject constructor(
     sealed class AuthSmsUiEvent {
         data class PhoneNumberSuccessfullyLinked(val msg: String) : AuthSmsUiEvent()
         data class EmailSuccessfullyLinked(val msg: String) : AuthSmsUiEvent()
+        data object NavigateToSignInScreen : AuthSmsUiEvent()
     }
 
     sealed class AuthSmsUiState {
@@ -182,18 +195,57 @@ class AuthSmsViewModel @Inject constructor(
         data object Loading : AuthSmsUiState()
         data class SuccessSend(val verificationId: String) : AuthSmsUiState()
         data class Success(val isNew: Boolean) : AuthSmsUiState()
-        data class Failed(val message: Err) : AuthSmsUiState()
+        data class Failed(val message: AuthError) : AuthSmsUiState()
+        data object FistFactorReq : AuthSmsUiState()
         data class FailedLinking(val message: LinkPhoneError) : AuthSmsUiState()
     }
 
-    enum class Err { BAD_PHONE, TOO_MANY,BAD_CODE, NO_NETWORK, GENERIC }
+    enum class AuthError {
+        InvalidPhoneNumber,
+        TooManyRequests,
+        InvalidVerificationCode,
+        NetworkUnavailable,
+        FirstFactorRequired,
+        Unknown
+    }
 
-    private fun mapError(t: Throwable): Err = when (t) {
-        is FirebaseNetworkException, is IOException -> Err.NO_NETWORK
-        is FirebaseAuthInvalidCredentialsException -> Err.BAD_CODE
+    private fun mapError(t: Throwable): AuthError {
+        if (t is CancellationException) throw t
 
-        is FirebaseTooManyRequestsException -> Err.TOO_MANY
-        else -> Err.GENERIC
+        return when (t) {
+            is FirebaseNetworkException, is IOException ->
+                AuthError.NetworkUnavailable
+
+            is FirebaseTooManyRequestsException ->
+                AuthError.TooManyRequests
+
+            is FirebaseAuthInvalidCredentialsException -> {
+                val code = (t as? FirebaseAuthException)?.errorCode
+                when (code) {
+                    "ERROR_INVALID_PHONE_NUMBER" -> AuthError.InvalidPhoneNumber
+                    "ERROR_INVALID_VERIFICATION_CODE",
+                    "ERROR_INVALID_CREDENTIAL" -> AuthError.InvalidVerificationCode
+
+                    else -> AuthError.InvalidVerificationCode
+                }
+            }
+
+            is FirebaseAuthException -> {
+                val code = t.errorCode
+                val msg = (t.message ?: "").lowercase()
+
+                // "requires sign-in with a supported first factor"
+                if ("supported first factor" in msg || "cannot be set as a first factor" in msg) {
+                    return AuthError.FirstFactorRequired
+                }
+
+                when (code) {
+                    else -> AuthError.Unknown
+                }
+            }
+
+            else -> AuthError.Unknown
+        }
     }
 }
 

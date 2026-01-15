@@ -10,7 +10,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -91,7 +90,12 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                         }
 
                     },
-                    navigateToAuthGateScreen = { nav.navigate(Screen.AuthGate.route) },
+                    navigateToAuthGateScreen = {
+                        nav.navigate(Screen.AuthGate.route) {
+                            popUpTo(Screen.CheckIfUserLoggedInScreen.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
         }
@@ -112,7 +116,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                         )
                     },
                     navigateToRegistrationOptions = { nav.navigate(Screen.RegisterOptions.route) },
-                    navigateToSingInWithEmail = { nav.navigate(Screen.EmailPasswordSignInScreen.route) }
+                    navigateToSingInWithEmail = { nav.navigate(Screen.EmailPasswordSignInScreen.route()) }
                 )
             }
 
@@ -165,6 +169,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
 
                     navigateToAuthGate = { nav.navigate(Screen.AuthGate.route) },
                     originScreen = screen,
+                    navigateToSignInScreen = { nav.navigate(Screen.EmailPasswordSignInScreen.route("MFA")) },
                 )
             }
 
@@ -194,7 +199,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                         nav.navigate(Screen.SignInOptions.route)
                     },
                     navigateToHomeScreen = {
-                        nav.navigate(Screen.HomeScreen.route) {
+                        nav.navigate(NavGraphs.MAIN_GRAPH.toRegularString()) {
                             popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) {
                                 inclusive = true
                             } // usuwa caly stack
@@ -207,20 +212,25 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                 )
             }
 
-            composable(Screen.EmailPasswordSignInScreen.route) {
+            composable(
+                Screen.EmailPasswordSignInScreen.route,
+                arguments = listOf(
+                    navArgument("screen") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    })
+            ) { backStackEntry ->
+                val screen = backStackEntry.arguments?.getString("screen")
+
                 val authGraphEntry =
-                    remember(it) { nav.getBackStackEntry(NavGraphs.AUTH_GRAPH.toRegularString()) }
+                    remember(backStackEntry) { nav.getBackStackEntry(NavGraphs.AUTH_GRAPH.toRegularString()) }
 
                 val viewModel: EmailPasswordSignInViewModel = hiltViewModel(authGraphEntry)
 
                 EmailPasswordSignIn(
+                    screen = screen,
                     emailPasswordSignInViewModel = viewModel,
-//                    navigateToHomeScreen = {
-//                        nav.navigate(Screen.HomeScreen.route) {
-//                            popUpTo("auth_graph") { inclusive = true }
-//                            launchSingleTop = true
-//                        }
-//                    },
                     navigateToSingInMethodScreen = {
                         nav.navigate(Screen.SignInOptions.route) {
                             popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
@@ -244,9 +254,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                     },
                     navigateToHomeScreen = {
                         nav.navigate(NavGraphs.MAIN_GRAPH.toRegularString()) {
-                            popUpTo(nav.graph.findStartDestination().id) {
-                                inclusive = true
-                            }
+                            popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
                             launchSingleTop = true
                         }
                     },
@@ -289,7 +297,12 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                     mfaEvents = viewModel.mfaEvents,
                     mfaState = state,
                     verifyMfaSmsCode = { code -> viewModel.verifyMfaSmsCode(code, verificationId) },
-                    navigateToMain = { nav.navigate(Screen.HomeScreen.route) },
+                    navigateToMain = {
+                        nav.navigate(NavGraphs.MAIN_GRAPH.toRegularString()) {
+                            popUpTo(NavGraphs.AUTH_GRAPH.toRegularString()) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
                     navigateToSignInScreen = { nav.popBackStack() }
                 )
             }
@@ -789,7 +802,17 @@ sealed class Screen(val route: String) {
     }
 
     data object EmailPasswordSignUpScreen : Screen("email_sign_up")
-    data object EmailPasswordSignInScreen : Screen("email_sign_in")
+    data object EmailPasswordSignInScreen : Screen("email_sign_in?screen={screen}") {
+
+        fun route(screen: String? = null): String {
+            return if (screen.isNullOrBlank()) {
+                "email_sign_in"
+            } else {
+                "email_sign_in?screen=${screen}"
+            }
+        }
+    }
+
     data object AuthGate : Screen("authGate")
 
     // email i phone # sa wartosiamy opconalnymi, moze byc a moze i nie byc

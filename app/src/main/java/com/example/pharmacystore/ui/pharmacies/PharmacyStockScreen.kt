@@ -110,17 +110,16 @@ fun PharmacyStockScreen(
 
 
     Box(Modifier.fillMaxSize()) {
-        when (state) {
+        when (val x = state) {
             DrugViewModel.PharmacyStockState.Idle -> {
 
             }
 
             is DrugViewModel.PharmacyStockState.Error -> {
 
-                val err = state as DrugViewModel.MedStockState.Error
 
                 Text(
-                    text = "Error: ${err.message}",
+                    text = "Error: ${x.message}",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
