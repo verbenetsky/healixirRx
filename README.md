@@ -119,6 +119,74 @@ A separate backend service built with **Ktor** (Kotlin) is available here: https
 - Location-based pharmacy discovery is based on the user’s saved profile address (TERYT-backed)
 - Reservation flow is designed as a temporary stock hold during checkout (in progress)
 
+## Screenshots
+
+<p>
+  <a href="https://github.com/user-attachments/assets/517412c1-46f0-4646-b8ea-94b4ad5c6233">
+    <img src="https://github.com/user-attachments/assets/517412c1-46f0-4646-b8ea-94b4ad5c6233" width="260" alt="Home screen" />
+  </a>
+  <br />
+  <sub><b>Home</b> — entry points to Profile, Nearby Pharmacies, Drug Search and Cart.</sub>
+</p>
+
+<p>
+  <a href="https://github.com/user-attachments/assets/9be1aa55-c03f-4739-b1f6-bff8a61b80bc">
+    <img src="https://github.com/user-attachments/assets/9be1aa55-c03f-4739-b1f6-bff8a61b80bc" width="260" alt="Profile screen" />
+  </a>
+  <br />
+  <sub><b>Profile</b> — account overview with contact details, saved address and shortcuts (Orders/Settings).</sub>
+</p>
+
+<p>
+  <a href="https://github.com/user-attachments/assets/91478284-778e-4aaf-a612-360e842e17cd">
+    <img src="https://github.com/user-attachments/assets/91478284-778e-4aaf-a612-360e842e17cd" width="260" alt="Nearby pharmacies screen" />
+  </a>
+  <br />
+  <sub><b>Nearby pharmacies</b> — radius (1–30 km), sorting, “Open now” filter and results list.</sub>
+</p>
+
+<p>
+  <a href="https://github.com/user-attachments/assets/712f5bdb-51ae-4ab0-909d-5229a2310306">
+    <img src="https://github.com/user-attachments/assets/712f5bdb-51ae-4ab0-909d-5229a2310306" width="260" alt="Pharmacy details screen" />
+  </a>
+  <br />
+  <sub><b>Pharmacy details</b> — registry information, contact actions (call/email) and opening hours.</sub>
+</p>
+
+<p>
+  <a href="https://github.com/user-attachments/assets/482f77e3-8343-4ebc-97b3-4edd567514a1">
+    <img src="https://github.com/user-attachments/assets/482f77e3-8343-4ebc-97b3-4edd567514a1" width="260" alt="Pharmacy stock screen" />
+  </a>
+  <br />
+  <sub><b>Pharmacy stock</b> — list of medicines available in a selected pharmacy, with add-to-cart flow.</sub>
+</p>
+
+<p>
+  <a href="https://github.com/user-attachments/assets/20b5a28a-9ff6-4f3a-9c56-33f1a5081a98">
+    <img src="https://github.com/user-attachments/assets/20b5a28a-9ff6-4f3a-9c56-33f1a5081a98" width="260" alt="Drug search screen" />
+  </a>
+  <br />
+  <sub><b>Drug search</b> — search by name / UPC / NDC (OpenFDA-backed) with product metadata.</sub>
+</p>
+
+<p>
+  <a href="https://github.com/user-attachments/assets/0e9bdfd4-c8ab-49e5-bfda-5f6c90c99729">
+    <img src="https://github.com/user-attachments/assets/0e9bdfd4-c8ab-49e5-bfda-5f6c90c99729" width="260" alt="Drug availability across pharmacies" />
+  </a>
+  <br />
+  <sub><b>Availability</b> — shows which pharmacies have the selected medicine/package, including distance and price.</sub>
+</p>
+
+<p>
+  <a href="https://github.com/user-attachments/assets/140d2e8f-4956-4ae8-a9c7-4c89d19d3de9">
+    <img src="https://github.com/user-attac
+
+
+## Dataset (TERYT-based)
+
+The app uses official Polish **TERYT** exports to provide a nationwide address dictionary with **full locality coverage** (cities, towns, and even the smallest villages) and street-level autocomplete where applicable.  
+Dataset downloads and detailed file descriptions are available in **Releases → Assets**.
+
 ## Development environment
 
 - **Android Studio:** Otter | 2025.2.1
@@ -128,10 +196,5 @@ A separate backend service built with **Ktor** (Kotlin) is available here: https
 - **Compile SDK:** 35
 - **Min SDK:** 28
 - **Target SDK:** 34
-
-## Dataset (TERYT-based)
-
-The app uses official Polish **TERYT** exports to provide a nationwide address dictionary with **full locality coverage** (cities, towns, and even the smallest villages) and street-level autocomplete where applicable.  
-Dataset downloads and detailed file descriptions are available in **Releases → Assets**.
 
 
