@@ -178,9 +178,12 @@ A separate backend service built with **Ktor** (Kotlin) is available here: https
 </p>
 
 <p>
-  <a href="https://github.com/user-attachments/assets/140d2e8f-4956-4ae8-a9c7-4c89d19d3de9">
-    <img src="https://github.com/user-attac
-
+  <a href="https://github.com/user-attachments/assets/8efe2fcc-5b77-4c1a-9b0e-b150b7c0bd7b">
+    <img src="https://github.com/user-attachments/assets/8efe2fcc-5b77-4c1a-9b0e-b150b7c0bd7b" width="260" alt="Orders screen" />
+  </a>
+  <br />
+  <sub><b>Orders</b> — history of placed orders with status, item breakdown and totals.</sub>
+</p>
 
 ## Dataset (TERYT-based)
 
