@@ -51,13 +51,81 @@ A separate backend service built with **Ktor** (Kotlin) is available here: https
 - Profile setup after login (basic personal details)
 
 ### Address & Location (TERYT-powered)
-- Address picker based on the official **Polish TERYT registry** (TERC / SIMC / ULIC)
-- Nationwide coverage of **cities, towns, villages**, and (for cities) **street-level autocomplete**
-- Fast suggestions while typing (e.g., selecting a city like *Lublin* enables searching and selecting streets available in that city)
-(More about it at: )
+- Address picker based on the official Polish **TERYT** registry (TERC / SIMC / ULIC)
+- Nationwide coverage of **cities, towns, villages**, with street-level autocomplete for cities
+- Fast suggestions while typing (locality selection enables street suggestions where available)
+- More details: [docs/teryt-address.md](docs/teryt-address.md)
 
-[Go to Features](#features)
-[Go to Tech Stack](#tech-stack)
-[Go to Address autocomplete](#address-autocomplete-teryt-powered)
+### Nearby Pharmacies (range + sorting + filters)
+- Find pharmacies within a user-defined radius (**1–30 km**) based on the saved profile address
+- Sorting options:
+  - by **distance** (nearest → farthest / farthest → nearest)
+  - by **name** (alphabetical)
+- Filter pharmacies by **“open now”** status
 
+### Pharmacy Details
+- Pharmacy detail page with:
+  - opening hours and basic contact information
+  - quick actions: **call**, **send email**, and **navigate** (opens Google Maps navigation)
+  - map location view (Google Maps)
+
+### Pharmacy Stock & Add-to-Cart
+- View the full **medicine stock** for a selected pharmacy
+- Add items directly from pharmacy stock to the cart (quantity selection)
+
+### Drugs Search (OpenFDA-backed)
+- Search medicines by **name** or **barcode**
+- View medicine details and **availability across pharmacies** (including price per pharmacy)
+- Deep link from a medicine result to:
+  - the pharmacy details page
+  - the pharmacy stock page
+
+### Cart & Checkout (PoC)
+- Cart items are **grouped by pharmacy** for clarity when products come from multiple sources
+- Edit cart content: change quantities / remove items
+- Order summary screen:
+  - pre-filled with profile data (editable)
+  - payment method selection (prototype-level)
+- “Place order” completes a demo flow (shows confirmation and clears the cart)
+
+### Orders History
+- Orders screen showing previously placed orders (prototype order tracking)
+
+### Reservation (in progress)
+- During checkout (Order Summary step), selected items will be **temporarily reserved**.
+- Reserved stock will **not be shown as available to other users** until the reservation expires or the order is completed/cancelled.
+
+## Quick navigation
+- [Tech Stack](#tech-stack)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Setup](#setup)
+- [Documentation](#documentation)
+- [Screenshots](#screenshots)
+- [Roadmap](#roadmap)
+
+## Architecture
+
+- **MVVM** with reactive UI state (**Flow/StateFlow**) and **Kotlin Coroutines**
+- **Repository pattern** separating data sources:
+  - **Local** cache: Room
+  - **Remote**: REST API / Firebase (depending on the feature)
+- **Paging 3** for scalable lists and efficient data loading
+- **DataStore** for persisted preferences and lightweight app state
+- UI built with **Jetpack Compose** + Material 3, driven by immutable state
+
+### Key implementation details
+- Search and filtering trigger a controlled refresh to avoid double clicks and inconsistent list states
+- Location-based pharmacy discovery is based on the user’s saved profile address (TERYT-backed)
+- Reservation flow is designed as a temporary stock hold during checkout (in progress)
+
+## Development environment
+
+- **Android Studio:** Otter | 2025.2.1
+- **Kotlin:** 2.2.20
+- **Android Gradle Plugin (AGP):** 8.7.3
+- **Gradle:** 8.9
+- **Compile SDK:** 35
+- **Min SDK:** 28
+- **Target SDK:** 34
 
