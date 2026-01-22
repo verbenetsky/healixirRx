@@ -129,3 +129,9 @@ A separate backend service built with **Ktor** (Kotlin) is available here: https
 - **Min SDK:** 28
 - **Target SDK:** 34
 
+## Dataset (TERYT-based)
+
+The app uses official Polish **TERYT** exports to provide a nationwide address dictionary with **full locality coverage** (cities, towns, and even the smallest villages) and street-level autocomplete where applicable.  
+Dataset downloads and detailed file descriptions are available in **Releases → Assets**.
+
+
