@@ -196,5 +196,3 @@ Dataset downloads and detailed file descriptions are available in **Releases →
 - **Compile SDK:** 35
 - **Min SDK:** 28
 - **Target SDK:** 34
-
-
