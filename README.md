@@ -95,15 +95,6 @@ A separate backend service built with **Ktor** (Kotlin) is available here: https
 - During checkout (Order Summary step), selected items will be **temporarily reserved**.
 - Reserved stock will **not be shown as available to other users** until the reservation expires or the order is completed/cancelled.
 
-## Quick navigation
-- [Tech Stack](#tech-stack)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Setup](#setup)
-- [Documentation](#documentation)
-- [Screenshots](#screenshots)
-- [Roadmap](#roadmap)
-
 ## Architecture
 
 - **MVVM** with reactive UI state (**Flow/StateFlow**) and **Kotlin Coroutines**
