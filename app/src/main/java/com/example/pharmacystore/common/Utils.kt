@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -181,19 +182,31 @@ fun combineAddress(
     ).joinToString(", ")
 }
 
-fun Throwable.toMessage(): String = when (this) {
-    is java.net.ConnectException,
-    is java.net.UnknownHostException -> "No internet connection"
+fun Throwable.toMessage(): String {
+    Log.d("ERROR", "$this")
 
-    is java.net.SocketTimeoutException -> "Request timed out"
-    is retrofit2.HttpException -> when (code()) {
-        401, 403 -> "Unauthorized"
-        404 -> "Not found"
-        in 500..599 -> "Server error"
-        else -> "Request failed (${code()})"
+    return when (this) {
+        is java.net.UnknownHostException ->
+            "No internet connection"
+
+        is java.net.ConnectException,
+        is java.net.NoRouteToHostException ->
+            "Server unavailable"
+
+        is java.net.SocketTimeoutException ->
+            "Server not responding (timeout)"
+
+        is retrofit2.HttpException -> when (code()) {
+            401, 403 -> "Unauthorized"
+            404 -> "Not found"
+            in 500..599 -> "Server error"
+            else -> "Request failed (${code()})"
+        }
+
+        else -> localizedMessage?.takeIf { it.isNotBlank() } ?: "Something went wrong"
     }
-    else -> localizedMessage?.takeIf { it.isNotBlank() } ?: "Something went wrong"
 }
+
 
 
 val emailPattern: Pattern = Pattern.compile(
@@ -206,11 +219,6 @@ val emailPattern: Pattern = Pattern.compile(
             ")+"
 )
 
-fun validateEmail(email: String): Boolean {
-    return emailPattern.matcher(email).matches()
-}
-
-
 fun truncateTo2Decimals(value: Double): Double {
     return floor(value * 100) / 100.0
 }
@@ -218,8 +226,8 @@ fun truncateTo2Decimals(value: Double): Double {
 
 @Composable
 fun LazyListState.isScrollingUp(): Boolean {
-    var previousIndex by remember(this) { mutableStateOf(firstVisibleItemIndex) }
-    var previousScrollOffset by remember(this) { mutableStateOf(firstVisibleItemScrollOffset) }
+    var previousIndex by remember(this) { mutableIntStateOf(firstVisibleItemIndex) }
+    var previousScrollOffset by remember(this) { mutableIntStateOf(firstVisibleItemScrollOffset) }
     return remember(this) {
         derivedStateOf {
             if (previousIndex != firstVisibleItemIndex) {

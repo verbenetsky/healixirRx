@@ -125,7 +125,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier) {
                 RegistrationScreenOptions(
                     navigateToSignInScreenOptions = { nav.navigate(Screen.SignInOptions.route) },
                     onPhoneRegister = { screen -> nav.navigate(Screen.AuthSmsScreen.route(screen)) },
-                    onEmailRegister = { nav.navigate(Screen.EmailPasswordSignUpScreen) }
+                    onEmailRegister = { nav.navigate(Screen.EmailPasswordSignUpScreen.route) }
                 )
             }
 

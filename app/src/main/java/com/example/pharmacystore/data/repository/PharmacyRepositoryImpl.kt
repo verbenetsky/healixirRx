@@ -71,8 +71,8 @@ class PharmacyRepositoryImpl @Inject constructor(
         return Pager(
             config = PagingConfig(
                 pageSize = 20,
-                initialLoadSize = 40,
-                prefetchDistance = 1,
+                initialLoadSize = 20,
+                prefetchDistance = 6,
                 enablePlaceholders = false
             ),
             remoteMediator = mediator,

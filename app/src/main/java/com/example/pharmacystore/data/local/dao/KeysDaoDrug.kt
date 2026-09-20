@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 import com.example.pharmacystore.data.local.entities.RemoteKeysDrugEntity
-import com.example.pharmacystore.data.local.entities.RemoteKeysPharmacyEntity
 
 
 @Dao
@@ -17,5 +16,5 @@ interface KeysDaoDrug {
     suspend fun deleteAllKeys()
 
     @Query("SELECT * FROM remote_key_drug where id =:id")
-    suspend fun getKey(id: String): RemoteKeysPharmacyEntity?
+    suspend fun getKey(id: String): RemoteKeysDrugEntity?
 }

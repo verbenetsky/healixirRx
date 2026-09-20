@@ -25,9 +25,7 @@ object DbModule {
 
     @Provides
     @Singleton
-    fun provideLocationDatabase(
-        @ApplicationContext ctx: Context
-    ): LocationDatabase =
+    fun provideLocationDatabase(@ApplicationContext ctx: Context): LocationDatabase =
         Room.databaseBuilder(
             ctx,
             LocationDatabase::class.java,

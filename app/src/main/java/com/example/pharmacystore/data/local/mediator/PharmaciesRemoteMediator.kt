@@ -23,8 +23,7 @@ class PharmaciesRemoteMediator(
     private val db: PharmacyDatabase,
     private val pharmacyRepository: PharmacyRepository,
     private val locationRepository: LocationRepository,
-) :
-    RemoteMediator<Int, PharmacyEntity>() {
+) : RemoteMediator<Int, PharmacyEntity>() {
 
     // fun to zostanie uruchomiona kiedy jest jakas forma loading w odniesieniu do
     // pagination, moga byc rozne typy loading, za to odpowiada loadType

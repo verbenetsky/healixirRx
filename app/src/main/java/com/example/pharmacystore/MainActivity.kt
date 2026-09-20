@@ -22,6 +22,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // bez tego nie dziala w debug, w production pewnie to nie jest potrzebne (nie sprawdzalem)
         if (BuildConfig.DEBUG) {
             FirebaseAuth.getInstance().firebaseAuthSettings
                 .forceRecaptchaFlowForTesting(true)
@@ -30,8 +31,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(
                 scrim = Color.Transparent.toArgb(),
-                )
+            )
         )
+
         setContent {
             val navController = rememberNavController()
             val backStackEntry by navController.currentBackStackEntryAsState()

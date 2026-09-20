@@ -1,23 +1,22 @@
 package com.example.pharmacystore.di
 
 import com.example.pharmacystore.BuildConfig
-import com.example.pharmacystore.remoteApi.OpenFdaApi
 import com.example.pharmacystore.remoteApi.DrugApi
+import com.example.pharmacystore.remoteApi.OpenFdaApi
 import com.example.pharmacystore.remoteApi.PharmacyApi
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
-import retrofit2.Retrofit
-import javax.inject.Singleton
 import dagger.Module
 import dagger.Provides
-import retrofit2.converter.moshi.MoshiConverterFactory
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Qualifier
-
+import javax.inject.Singleton
 
 
 // wykorzystywane kiedy mamy kilka obiektow tego samego typu i zeby DI wiedzial jakiego stosowac
@@ -45,7 +44,7 @@ object NetworkModule {
     @Provides @Singleton @KtorRetrofit
     fun provideKtorRetrofit(moshi: Moshi): Retrofit =
         Retrofit.Builder()
-            .baseUrl("http://192.168.1.33:8081/")
+            .baseUrl("http://83.168.69.87:8081/")
             .client(okHttp)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
@@ -53,7 +52,7 @@ object NetworkModule {
     @Provides @Singleton @DrugRetrofit
     fun provideDrugRetrofit(moshi: Moshi): Retrofit =
         Retrofit.Builder()
-            .baseUrl(BASE_URL)    // <- TU dajesz adres drug API, np. https://api.fda.gov/
+            .baseUrl(BASE_URL)
             .client(okHttp)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()

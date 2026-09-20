@@ -11,7 +11,7 @@ import com.example.pharmacystore.data.local.entities.RemoteKeysPharmacyEntity
 
 @Database(
     entities = [PharmacyEntity::class, RemoteKeysPharmacyEntity::class],
-    version = 1
+    version = 2
 )
 abstract class PharmacyDatabase : RoomDatabase() {
     abstract val pharmacyDao: PharmacyDao
@@ -28,6 +28,7 @@ abstract class PharmacyDatabase : RoomDatabase() {
                     PharmacyDatabase::class.java,
                     "pharmacy.db"
                 )
+                    .fallbackToDestructiveMigration()
                     .enableMultiInstanceInvalidation()
                     .build()
                     .also { INSTANCE = it }
